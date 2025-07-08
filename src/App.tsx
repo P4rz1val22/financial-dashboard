@@ -1,4 +1,5 @@
-import Card from "@/components/card";
+import StockCard from "@/components/stock-card";
+import { stockService } from "@/services/stockService";
 
 function App() {
   return (
@@ -17,7 +18,7 @@ function App() {
         </h1>
       </div>
       <div className="w-full grid-cols-3 gap-2 grid">
-        <Card />
+        <StockCard symbol={"AAPL"} />
       </div>
     </div>
   );
