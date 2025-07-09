@@ -3,7 +3,7 @@ import { FinnhubQuoteResponse, Stock } from "@/types";
 const API_KEY = import.meta.env.VITE_FINNHUB_API_KEY;
 const BASE_URL = "https://finnhub.io/api/v1";
 
-//////////////////////////// Helper functions for error checking /////////////////////////////////
+//////////////////////////// Error Checking /////////////////////////////////
 
 const validateAPIKey = (symbol: string) => {
   if (!API_KEY) {
@@ -52,9 +52,54 @@ const isCustomError = (error: unknown): error is Error => {
   );
 };
 
+////////////////////////////////// Helper functions //////////////////////////////////
+
+const toStartCase = (str: string): string => {
+  return str
+    .toLowerCase()
+    .split(" ")
+    .map((word) => {
+      // Handle common abbreviations
+      if (word === "inc" || word === "corp" || word === "ltd") {
+        return word.charAt(0).toUpperCase() + word.slice(1) + ".";
+      }
+      // Regular words
+      return word.charAt(0).toUpperCase() + word.slice(1);
+    })
+    .join(" ");
+};
+
 ////////////////////////////////// Core functionality //////////////////////////////////
 
+const companyNameCache = new Map<string, string>();
+
 export const stockService = {
+  async getCompanyName(symbol: string): Promise<string> {
+    // Check cache first
+    if (companyNameCache.has(symbol)) {
+      return companyNameCache.get(symbol)!;
+    }
+
+    try {
+      const response = await fetch(
+        `${BASE_URL}/search?q=${symbol}&exchange=US&token=${API_KEY}`
+      );
+      const data = await response.json();
+
+      let companyName = symbol; // Fallback
+      if (data.result && data.result.length > 0) {
+        companyName = data.result[0].description;
+      }
+
+      companyNameCache.set(symbol, companyName);
+      return companyName;
+    } catch (error) {
+      console.error(`Error fetching company name for ${symbol}:`, error);
+      companyNameCache.set(symbol, symbol);
+      return symbol;
+    }
+  },
+
   async getQuote(symbol: string): Promise<Stock> {
     try {
       validateAPIKey(symbol);
@@ -67,9 +112,12 @@ export const stockService = {
       const data: FinnhubQuoteResponse = await response.json();
       validateStockData(data, symbol);
 
+      const rawCompanyName = await this.getCompanyName(symbol);
+      const companyName = toStartCase(rawCompanyName);
+
       return {
         symbol: symbol.toUpperCase(),
-        companyName: symbol.toUpperCase(),
+        companyName: companyName,
         currentPrice: data.c,
         change: data.d,
         changePercent: data.dp,

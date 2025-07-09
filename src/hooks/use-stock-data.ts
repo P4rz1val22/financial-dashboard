@@ -8,6 +8,11 @@ const useStockData = (): UseStockDataReturn => {
   const [selectedStock, setSelectedStock] = useState<Stock | null>(null);
   const [isGlobalLoading, setIsGlobalLoading] = useState(false);
   const [globalError, setGlobalError] = useState<string | undefined>();
+  const MAX_WATCHLIST_SIZE = 30;
+
+  useEffect(() => {
+    const refreshAllStocks = async () => {};
+  }, []);
 
   const addStock = async (symbol: string) => {
     const symbolUpper = symbol.toUpperCase();
@@ -18,6 +23,14 @@ const useStockData = (): UseStockDataReturn => {
           toast.error(`${symbolUpper} is already in your watchlist`);
           resolve(false);
           return prev; // Return unchanged
+        }
+
+        if (prev.length >= MAX_WATCHLIST_SIZE) {
+          toast.error(
+            `Maximum ${MAX_WATCHLIST_SIZE} stocks allowed in watchlist`
+          );
+          resolve(false);
+          return prev;
         }
 
         const loadingStock: Stock = {
@@ -145,6 +158,59 @@ const useStockData = (): UseStockDataReturn => {
     }
   };
 
+  useEffect(() => {
+    const refreshAllStocks = async () => {
+      setWatchlist((prev) => {
+        const stocksToRefresh = prev.filter(
+          (stock) => !stock.isLoading && !stock.error
+        );
+
+        if (stocksToRefresh.length === 0) return prev;
+
+        console.log(`Auto-refreshing ${stocksToRefresh.length} stocks...`);
+
+        // Set all refreshable stocks to loading
+        const updatedStocks = prev.map((stock) =>
+          stocksToRefresh.some((s) => s.symbol === stock.symbol)
+            ? { ...stock, isLoading: true }
+            : stock
+        );
+
+        // Refresh each stock
+        stocksToRefresh.forEach(async (stock) => {
+          try {
+            const updatedStock = await stockService.getQuote(stock.symbol);
+            setWatchlist((current) =>
+              current.map((s) => (s.symbol === stock.symbol ? updatedStock : s))
+            );
+          } catch (error) {
+            // On refresh error, set error state
+            let errorMsg = "Unknown error";
+            if (error instanceof Error) {
+              errorMsg = error.message;
+            }
+
+            setWatchlist((current) =>
+              current.map((s) =>
+                s.symbol === stock.symbol
+                  ? { ...s, isLoading: false, error: errorMsg }
+                  : s
+              )
+            );
+          }
+        });
+
+        return updatedStocks;
+      });
+    };
+
+    // Set up interval for every 60 seconds
+    const interval = setInterval(refreshAllStocks, 60000);
+
+    // Cleanup on unmount
+    return () => clearInterval(interval);
+  }, []);
+
   return {
     watchlist,
     addStock,
@@ -155,6 +221,7 @@ const useStockData = (): UseStockDataReturn => {
     retryStock,
     isGlobalLoading,
     globalError,
+    MAX_WATCHLIST_SIZE,
   };
 };
 

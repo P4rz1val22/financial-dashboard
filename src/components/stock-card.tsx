@@ -62,7 +62,7 @@ function StockCard(props: Readonly<CardProps>) {
         onSelect(stock);
       }}
     >
-      <div className="flex flex-col gap-1">
+      <div className="flex flex-col ">
         <div className="flex flex-row items-center gap-2">
           <h2 className="font-bold">{stock.symbol}</h2>
           <h4

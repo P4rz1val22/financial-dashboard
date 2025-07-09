@@ -76,4 +76,5 @@ export interface UseStockDataReturn {
   retryStock: (symbol: string) => Promise<void>;
   isGlobalLoading: boolean;
   globalError?: string;
+  MAX_WATCHLIST_SIZE: number;
 }

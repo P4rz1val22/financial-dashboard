@@ -11,6 +11,7 @@ function App() {
     selectStock,
     retryStock,
     selectedStock,
+    MAX_WATCHLIST_SIZE,
   } = useStockData();
   const [popularStocks, setPopularStocks] = useState([
     "AAPL",
@@ -38,6 +39,9 @@ function App() {
               }
             }}
           />
+          <div className="text-sm text-gray-500 p-2">
+            Watchlist: {watchlist.length}/{MAX_WATCHLIST_SIZE}
+          </div>
         </h1>
       </div>
       {popularStocks.length !== 0 && (
