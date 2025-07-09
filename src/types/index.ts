@@ -1,8 +1,10 @@
 export interface CardProps {
-  readonly symbol?: string | null;
-  readonly children?: JSX.Element | null;
+  stock: Stock;
+  onRemove: (symbol: string) => void;
+  onSelect: (stock: Stock) => void;
+  onRetry: (symbol: string) => void; // Add this
+  isSelected?: boolean;
 }
-
 // Raw API response from Finnhub
 export interface FinnhubQuoteResponse {
   c: number; // Current price

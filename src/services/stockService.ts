@@ -4,6 +4,7 @@ const API_KEY = import.meta.env.VITE_FINNHUB_API_KEY;
 const BASE_URL = "https://finnhub.io/api/v1";
 
 //////////////////////////// Helper functions for error checking /////////////////////////////////
+
 const validateAPIKey = (symbol: string) => {
   if (!API_KEY) {
     throw new Error(`API_KEY_ERROR:${symbol}: Missing API key`);
