@@ -1,4 +1,4 @@
-import { FinnhubQuoteResponse, Stock } from "@/types";
+import { FinnhubQuoteResponse, SearchResult, Stock } from "@/types";
 
 const API_KEY = import.meta.env.VITE_FINNHUB_API_KEY;
 const BASE_URL = "https://finnhub.io/api/v1";
@@ -97,6 +97,35 @@ export const stockService = {
       console.error(`Error fetching company name for ${symbol}:`, error);
       companyNameCache.set(symbol, symbol);
       return symbol;
+    }
+  },
+
+  async searchStocks(query: string): Promise<SearchResult[]> {
+    if (!query.trim()) return [];
+
+    try {
+      validateAPIKey("SEARCH");
+
+      const response = await fetch(
+        `${BASE_URL}/search?q=${encodeURIComponent(
+          query
+        )}&exchange=US&token=${API_KEY}`
+      );
+
+      validateResponse(response, "SEARCH");
+
+      const data = await response.json();
+
+      if (data.result && Array.isArray(data.result)) {
+        return data.result
+          .filter((item: any) => item.type === "Common Stock") // Only show stocks
+          .slice(0, 10); // Limit to 10 results
+      }
+
+      return [];
+    } catch (error) {
+      console.error("Search error:", error);
+      return [];
     }
   },
 

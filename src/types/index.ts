@@ -1,10 +1,3 @@
-export interface CardProps {
-  stock: Stock;
-  onRemove: (symbol: string) => void;
-  onSelect: (stock: Stock) => void;
-  onRetry: (symbol: string) => void; // Add this
-  isSelected?: boolean;
-}
 // Raw API response from Finnhub
 export interface FinnhubQuoteResponse {
   c: number; // Current price
@@ -54,16 +47,17 @@ export interface DashboardState {
   lastRefresh: Date | null;
 }
 
-// Component props
-export interface StockCardProps {
-  stock: Stock;
-  isSelected: boolean;
-  onClick: (stock: Stock) => void;
-}
-
 export interface SearchBarProps {
   onSearch: (symbol: string) => void;
   isLoading: boolean;
+}
+
+export interface CardProps {
+  stock: Stock;
+  onRemove: (symbol: string) => void;
+  onSelect: (stock: Stock) => void;
+  onRetry: (symbol: string) => void;
+  isSelected?: boolean;
 }
 
 export interface UseStockDataReturn {
@@ -74,7 +68,21 @@ export interface UseStockDataReturn {
   selectStock: (stock: Stock) => void;
   clearSelection: () => void;
   retryStock: (symbol: string) => Promise<void>;
+  searchQuery: string;
+  searchResults: SearchResult[];
+  isSearching: boolean;
+  searchStocks: (query: string) => void;
+  clearSearch: () => void;
   isGlobalLoading: boolean;
+  refreshAllStocks: (isManual?: boolean) => Promise<void>;
   globalError?: string;
-  MAX_WATCHLIST_SIZE: number;
+  maxWatchlistSize: number;
+  lastManualRefresh: Date | null;
+  MANUAL_REFRESH_COOLDOWN: number;
+}
+
+export interface SearchResult {
+  symbol: string;
+  description: string;
+  type: string;
 }

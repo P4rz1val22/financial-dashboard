@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import { Stock, UseStockDataReturn } from "@/types";
+import { useState, useEffect, useCallback, useRef } from "react";
+import { SearchResult, Stock, UseStockDataReturn } from "@/types";
 import { stockService } from "@/services/stockService";
 import toast from "react-hot-toast";
 
@@ -8,56 +8,95 @@ const useStockData = (): UseStockDataReturn => {
   const [selectedStock, setSelectedStock] = useState<Stock | null>(null);
   const [isGlobalLoading, setIsGlobalLoading] = useState(false);
   const [globalError, setGlobalError] = useState<string | undefined>();
-  const MAX_WATCHLIST_SIZE = 30;
+  const maxWatchlistSize = 30;
+  const [lastManualRefresh, setLastManualRefresh] = useState<Date | null>(null);
+  const MANUAL_REFRESH_COOLDOWN = 30000;
+
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const hasInitialized = useRef(false);
+
+  const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // ADD DEBOUNCING FOR REFRESH
+  const refreshDebounceRef = useRef<NodeJS.Timeout | null>(null);
+
+  const searchStocks = useCallback((query: string) => {
+    setSearchQuery(query);
+
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
+    }
+
+    if (!query.trim()) {
+      setSearchResults([]);
+      return;
+    }
+
+    searchTimeoutRef.current = setTimeout(async () => {
+      setIsSearching(true);
+      try {
+        const results = await stockService.searchStocks(query);
+        setSearchResults(results);
+      } catch (error) {
+        console.error("Search failed:", error);
+        setSearchResults([]);
+      } finally {
+        setIsSearching(false);
+      }
+    }, 300);
+  }, []);
 
   useEffect(() => {
-    const refreshAllStocks = async () => {};
+    return () => {
+      if (searchTimeoutRef.current) {
+        clearTimeout(searchTimeoutRef.current);
+      }
+      // CLEANUP REFRESH DEBOUNCE
+      if (refreshDebounceRef.current) {
+        clearTimeout(refreshDebounceRef.current);
+      }
+    };
   }, []);
+
+  const clearSearch = () => {
+    setSearchQuery("");
+    setSearchResults([]);
+  };
 
   const addStock = async (symbol: string) => {
     const symbolUpper = symbol.toUpperCase();
 
-    const shouldProceed = await new Promise<boolean>((resolve) => {
-      setWatchlist((prev) => {
-        if (prev.some((stock) => stock.symbol === symbolUpper)) {
-          toast.error(`${symbolUpper} is already in your watchlist`);
-          resolve(false);
-          return prev; // Return unchanged
-        }
+    if (watchlist.some((stock) => stock.symbol === symbolUpper)) {
+      toast.error(`${symbolUpper} is already in your watchlist`);
+      return;
+    }
 
-        if (prev.length >= MAX_WATCHLIST_SIZE) {
-          toast.error(
-            `Maximum ${MAX_WATCHLIST_SIZE} stocks allowed in watchlist`
-          );
-          resolve(false);
-          return prev;
-        }
+    if (watchlist.length >= maxWatchlistSize) {
+      toast.error(`Maximum ${maxWatchlistSize} stocks allowed in watchlist`);
+      return;
+    }
 
-        const loadingStock: Stock = {
-          symbol: symbolUpper,
-          companyName: "Loading...",
-          currentPrice: 0,
-          change: 0,
-          changePercent: 0,
-          dayHigh: 0,
-          dayLow: 0,
-          dayOpen: 0,
-          previousClose: 0,
-          lastUpdated: new Date(),
-          isLoading: true,
-          error: undefined,
-        };
+    const loadingStock: Stock = {
+      symbol: symbolUpper,
+      companyName: "Loading...",
+      currentPrice: 0,
+      change: 0,
+      changePercent: 0,
+      dayHigh: 0,
+      dayLow: 0,
+      dayOpen: 0,
+      previousClose: 0,
+      lastUpdated: new Date(),
+      isLoading: true,
+      error: undefined,
+    };
 
-        resolve(true);
-        return [...prev, loadingStock];
-      });
-    });
-
-    if (!shouldProceed) return;
+    setWatchlist((prev) => [...prev, loadingStock]);
 
     try {
       const stock = await stockService.getQuote(symbolUpper);
-
       setWatchlist((prev) =>
         prev.map((s) => (s.symbol === symbolUpper ? stock : s))
       );
@@ -68,7 +107,6 @@ const useStockData = (): UseStockDataReturn => {
         errorMsg = error.message;
       }
 
-      // Invalid symbols are user error – doesn't need a retry
       if (errorMsg.startsWith("INVALID_SYMBOL:")) {
         toast.error(`"${symbolUpper}" is not a valid stock symbol`);
         setWatchlist((prev) =>
@@ -96,12 +134,9 @@ const useStockData = (): UseStockDataReturn => {
 
   const removeStock = (symbol: string) => {
     const symbolUpper = symbol.toUpperCase();
-
-    setWatchlist((prev) => {
-      const newWatchlist = prev.filter((stock) => stock.symbol !== symbolUpper);
-      return newWatchlist;
-    });
-
+    setWatchlist((prev) =>
+      prev.filter((stock) => stock.symbol !== symbolUpper)
+    );
     toast.success(`Removed ${symbolUpper} from watchlist`);
   };
 
@@ -128,11 +163,9 @@ const useStockData = (): UseStockDataReturn => {
 
     try {
       const stock = await stockService.getQuote(symbolUpper);
-
       setWatchlist((prev) =>
         prev.map((s) => (s.symbol === symbolUpper ? stock : s))
       );
-
       toast.success(`Retried ${stock.companyName} successfully`);
     } catch (error) {
       let errorMsg = "Unknown error";
@@ -158,38 +191,77 @@ const useStockData = (): UseStockDataReturn => {
     }
   };
 
-  useEffect(() => {
-    const refreshAllStocks = async () => {
-      setWatchlist((prev) => {
-        const stocksToRefresh = prev.filter(
+  const refreshAllStocks = useCallback(async (isManual = false) => {
+    // DEBOUNCE MANUAL REFRESH CALLS
+    if (isManual) {
+      if (refreshDebounceRef.current) {
+        clearTimeout(refreshDebounceRef.current);
+      }
+
+      refreshDebounceRef.current = setTimeout(() => {
+        performRefresh(true);
+      }, 100);
+      return;
+    }
+
+    // Auto refresh (no debouncing needed)
+    performRefresh(false);
+  }, []);
+
+  // SEPARATE ACTUAL REFRESH LOGIC - FIXED: Access current watchlist via setWatchlist callback
+  const performRefresh = useCallback(
+    async (isManual: boolean) => {
+      if (isManual) {
+        const now = new Date();
+        if (
+          lastManualRefresh &&
+          now.getTime() - lastManualRefresh.getTime() < MANUAL_REFRESH_COOLDOWN
+        ) {
+          const remainingSeconds = Math.ceil(
+            (MANUAL_REFRESH_COOLDOWN -
+              (now.getTime() - lastManualRefresh.getTime())) /
+              1000
+          );
+          toast.error(
+            `Please wait ${remainingSeconds} seconds before refreshing again`
+          );
+          return;
+        }
+        setLastManualRefresh(now);
+      }
+
+      // FIXED: Get current watchlist state inside the function
+      setWatchlist((currentWatchlist) => {
+        const stocksToRefresh = currentWatchlist.filter(
           (stock) => !stock.isLoading && !stock.error
         );
 
-        if (stocksToRefresh.length === 0) return prev;
+        // Check for empty watchlist BEFORE showing loading toast
+        if (stocksToRefresh.length === 0) {
+          if (isManual) {
+            toast.success("No stocks to refresh");
+          }
+          return currentWatchlist; // Return unchanged state
+        }
 
-        console.log(`Auto-refreshing ${stocksToRefresh.length} stocks...`);
+        // NOW show loading state only if we have stocks to refresh
+        if (isManual) {
+          setIsGlobalLoading(true);
+          toast("Refreshing all stocks...", { icon: "🔄" });
+        }
 
-        // Set all refreshable stocks to loading
-        const updatedStocks = prev.map((stock) =>
-          stocksToRefresh.some((s) => s.symbol === stock.symbol)
-            ? { ...stock, isLoading: true }
-            : stock
-        );
-
-        // Refresh each stock
-        stocksToRefresh.forEach(async (stock) => {
+        // Refresh each stock (async operations)
+        const refreshPromises = stocksToRefresh.map(async (stock) => {
           try {
             const updatedStock = await stockService.getQuote(stock.symbol);
             setWatchlist((current) =>
               current.map((s) => (s.symbol === stock.symbol ? updatedStock : s))
             );
           } catch (error) {
-            // On refresh error, set error state
             let errorMsg = "Unknown error";
             if (error instanceof Error) {
               errorMsg = error.message;
             }
-
             setWatchlist((current) =>
               current.map((s) =>
                 s.symbol === stock.symbol
@@ -200,28 +272,57 @@ const useStockData = (): UseStockDataReturn => {
           }
         });
 
-        return updatedStocks;
+        if (isManual) {
+          // Wait for all promises to complete before showing success
+          Promise.allSettled(refreshPromises).then(() => {
+            setIsGlobalLoading(false);
+            toast.success("Refresh complete!");
+          });
+        }
+
+        // Return watchlist with loading states set
+        return currentWatchlist.map((stock) =>
+          stocksToRefresh.some((s) => s.symbol === stock.symbol)
+            ? { ...stock, isLoading: true }
+            : stock
+        );
       });
-    };
+    },
+    [lastManualRefresh]
+  );
 
-    // Set up interval for every 60 seconds
-    const interval = setInterval(refreshAllStocks, 60000);
+  useEffect(() => {
+    if (hasInitialized.current) return;
+    hasInitialized.current = true;
 
-    // Cleanup on unmount
+    refreshAllStocks(); // Initial call
+
+    const interval = setInterval(() => {
+      refreshAllStocks();
+    }, 60000);
+
     return () => clearInterval(interval);
-  }, []);
+  }, [refreshAllStocks]);
 
   return {
+    searchQuery,
+    searchResults,
+    isSearching,
     watchlist,
-    addStock,
     selectedStock,
+    isGlobalLoading,
+    globalError,
+    maxWatchlistSize,
+    addStock,
+    refreshAllStocks,
     selectStock,
+    searchStocks,
+    clearSearch,
     clearSelection,
     removeStock,
     retryStock,
-    isGlobalLoading,
-    globalError,
-    MAX_WATCHLIST_SIZE,
+    lastManualRefresh,
+    MANUAL_REFRESH_COOLDOWN,
   };
 };
 
