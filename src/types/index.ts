@@ -1,4 +1,13 @@
-// Raw API response from Finnhub
+/**
+ * Type definitions for the Financial Dashboard application
+ * All types are actively used and production-ready
+ */
+
+// ===== FINNHUB API RESPONSE TYPES =====
+
+/**
+ * Raw API response structure from Finnhub stock quote endpoint
+ */
 export interface FinnhubQuoteResponse {
   c: number; // Current price
   d: number; // Change
@@ -10,79 +19,122 @@ export interface FinnhubQuoteResponse {
   t: number; // Timestamp
 }
 
+/**
+ * Search result structure from Finnhub symbol search endpoint
+ */
+export interface FinnhubSymbolResponse {
+  symbol: string;
+  description: string;
+  type: string;
+}
+
+// ===== CORE DATA TYPES =====
+
+/**
+ * Real-time price data point for chart visualization
+ */
+export interface PricePoint {
+  timestamp: Date;
+  price: number;
+  change: number;
+  changePercent: number;
+}
+
+/**
+ * Complete stock data model with real-time updates and state management
+ */
 export interface Stock {
   symbol: string;
   companyName: string;
-  currentPrice?: number; // undefined while loading/failed
+  currentPrice?: number;
   change?: number;
   changePercent?: number;
   dayHigh?: number;
   dayLow?: number;
   dayOpen?: number;
   previousClose?: number;
-  volume?: number;
-  marketCap?: number;
   lastUpdated: Date;
   isLoading: boolean;
   error?: string;
-  retryCount?: number;
-}
-// For time series/chart data
-export interface StockCandle {
-  timestamp: Date;
-  open: number;
-  high: number;
-  low: number;
-  close: number;
-  volume: number;
+  priceHistory: PricePoint[];
 }
 
-// Application state
-export interface DashboardState {
-  watchlist: Stock[];
-  selectedStock: Stock | null;
-  searchQuery: string;
-  isLoading: boolean;
-  error: string | null;
-  lastRefresh: Date | null;
-}
+// ===== COMPONENT PROP TYPES =====
 
-export interface SearchBarProps {
-  onSearch: (symbol: string) => void;
+/**
+ * Props for the LineChart component supporting both mini and detailed views
+ */
+export interface LineChartProps {
+  data: PricePoint[];
+  width?: number;
+  height?: number;
+  mini?: boolean;
+  symbol: string;
   isLoading: boolean;
 }
 
+/*
+ * Props for the detailed stock modal
+ */
+export interface DetailedStockModalProps {
+  stock: Stock;
+  onClose: () => void;
+  isLoading: boolean;
+}
+
+/**
+ * Props for individual stock cards in the dashboard grid
+ */
 export interface CardProps {
   stock: Stock;
   onRemove: (symbol: string) => void;
   onSelect: (stock: Stock) => void;
   onRetry: (symbol: string) => void;
   isSelected?: boolean;
+  isGlobalLoading: boolean;
+  chartWidth: number;
 }
 
+/**
+ * Props for the search dropdown component
+ */
+export interface SearchDropdownProps {
+  searchResults: FinnhubSymbolResponse[];
+  isVisible: boolean;
+  onSelectStock: (symbol: string) => void;
+  onClose: () => void;
+  isSearching: boolean;
+}
+
+// ===== HOOK RETURN TYPES =====
+
+/**
+ * Return type for the useStockData hook - complete stock management interface
+ */
 export interface UseStockDataReturn {
+  // Core stock data
   watchlist: Stock[];
+  selectedStock: Stock | null;
+
+  // Stock management actions
   addStock: (symbol: string) => Promise<void>;
   removeStock: (symbol: string) => void;
-  selectedStock: Stock | null;
-  selectStock: (stock: Stock) => void;
+  selectStock: (stock: Stock | null) => void;
   clearSelection: () => void;
   retryStock: (symbol: string) => Promise<void>;
+  refreshAllStocks: (isManual?: boolean) => Promise<void>;
+
+  // Search functionality
   searchQuery: string;
-  searchResults: SearchResult[];
+  searchResults: FinnhubSymbolResponse[];
   isSearching: boolean;
   searchStocks: (query: string) => void;
   clearSearch: () => void;
+
+  // Global state
   isGlobalLoading: boolean;
-  refreshAllStocks: (isManual?: boolean) => Promise<void>;
   globalError?: string;
   maxWatchlistSize: number;
   lastManualRefresh: Date | null;
   MANUAL_REFRESH_COOLDOWN: number;
-}
-
-export interface SearchResult {
-  symbol: string;
-  description: string;
-  type: string;
 }

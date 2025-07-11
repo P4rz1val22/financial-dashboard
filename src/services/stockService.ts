@@ -1,4 +1,12 @@
-import { FinnhubQuoteResponse, SearchResult, Stock } from "@/types";
+// services/stockService.ts - Complete file with utilities
+
+import {
+  FinnhubQuoteResponse,
+  FinnhubSymbolResponse,
+  Stock,
+  PricePoint,
+} from "@/types";
+import { CompanyNameResolver } from "@/utils/company-names";
 
 const API_KEY = import.meta.env.VITE_FINNHUB_API_KEY;
 const BASE_URL = "https://finnhub.io/api/v1";
@@ -74,33 +82,76 @@ const toStartCase = (str: string): string => {
 const companyNameCache = new Map<string, string>();
 
 export const stockService = {
+  async getQuoteWithTimeout(
+    symbol: string,
+    timeoutMs: number = 10000
+  ): Promise<Stock> {
+    const timeoutPromise = new Promise<never>((_, reject) => {
+      setTimeout(
+        () => reject(new Error("TIMEOUT: Request took too long")),
+        timeoutMs
+      );
+    });
+
+    return Promise.race([this.getQuote(symbol), timeoutPromise]);
+  },
+
   async getCompanyName(symbol: string): Promise<string> {
+    const symbolUpper = symbol.toUpperCase();
+
     // Check cache first
-    if (companyNameCache.has(symbol)) {
-      return companyNameCache.get(symbol)!;
+    if (companyNameCache.has(symbolUpper)) {
+      return companyNameCache.get(symbolUpper)!;
     }
 
+    // Check static mapping first (no API call needed!)
+    const mappedName = CompanyNameResolver.getCompanyName(symbolUpper);
+    if (mappedName) {
+      companyNameCache.set(symbolUpper, mappedName);
+      return mappedName;
+    }
+
+    // Fallback to API call only for unmapped stocks
     try {
       const response = await fetch(
-        `${BASE_URL}/search?q=${symbol}&exchange=US&token=${API_KEY}`
+        `${BASE_URL}/search?q=${symbolUpper}&exchange=US&token=${API_KEY}`
       );
-      const data = await response.json();
 
-      let companyName = symbol; // Fallback
-      if (data.result && data.result.length > 0) {
-        companyName = data.result[0].description;
+      // If rate limited, just return the symbol
+      if (response.status === 429) {
+        console.warn(`Rate limited for company name: ${symbolUpper}`);
+        companyNameCache.set(symbolUpper, symbolUpper);
+        return symbolUpper;
       }
 
-      companyNameCache.set(symbol, companyName);
+      const data = await response.json();
+
+      let companyName = symbolUpper; // Fallback to symbol
+      if (data.result && data.result.length > 0) {
+        // 🔧 BUG FIX: Find exact symbol match, not just first result
+        const exactMatch = data.result.find(
+          (item: any) => item.symbol.toUpperCase() === symbolUpper
+        );
+
+        if (exactMatch) {
+          companyName = toStartCase(exactMatch.description);
+        } else {
+          // No exact match found - this might be an invalid symbol
+          console.warn(`No exact match found for symbol: ${symbolUpper}`);
+          companyName = symbolUpper; // Keep as symbol
+        }
+      }
+
+      companyNameCache.set(symbolUpper, companyName);
       return companyName;
     } catch (error) {
-      console.error(`Error fetching company name for ${symbol}:`, error);
-      companyNameCache.set(symbol, symbol);
-      return symbol;
+      console.warn(`Error fetching company name for ${symbolUpper}:`, error);
+      companyNameCache.set(symbolUpper, symbolUpper);
+      return symbolUpper;
     }
   },
 
-  async searchStocks(query: string): Promise<SearchResult[]> {
+  async searchStocks(query: string): Promise<FinnhubSymbolResponse[]> {
     if (!query.trim()) return [];
 
     try {
@@ -142,7 +193,7 @@ export const stockService = {
       validateStockData(data, symbol);
 
       const rawCompanyName = await this.getCompanyName(symbol);
-      const companyName = toStartCase(rawCompanyName);
+      const companyName = rawCompanyName === symbol ? symbol : rawCompanyName;
 
       return {
         symbol: symbol.toUpperCase(),
@@ -157,6 +208,7 @@ export const stockService = {
         lastUpdated: new Date(),
         isLoading: false,
         error: undefined,
+        priceHistory: [], // Initialize empty price history
       };
     } catch (error) {
       if (isCustomError(error)) {
@@ -166,5 +218,30 @@ export const stockService = {
         `PARSING_ERROR:${symbol}: Failed to parse data for ${symbol}`
       );
     }
+  },
+
+  // Helper function to create price point from stock data
+  createPricePoint(stock: Stock): PricePoint {
+    return {
+      timestamp: new Date(),
+      price: stock.currentPrice || 0,
+      change: stock.change || 0,
+      changePercent: stock.changePercent || 0,
+    };
+  },
+
+  // Helper function to add price point to history
+  addPriceToHistory(stock: Stock, maxPoints: number = 100): Stock {
+    const newPricePoint = this.createPricePoint(stock);
+
+    // Add new point and keep only the last maxPoints
+    const updatedHistory = [...stock.priceHistory, newPricePoint].slice(
+      -maxPoints
+    );
+
+    return {
+      ...stock,
+      priceHistory: updatedHistory,
+    };
   },
 };
