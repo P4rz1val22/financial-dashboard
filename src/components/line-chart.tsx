@@ -1,6 +1,6 @@
 // components/line-chart.tsx
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import * as d3 from "d3";
 import { LineChartProps } from "@/types";
 
@@ -13,7 +13,15 @@ export const LineChart = ({
   isLoading = false,
 }: LineChartProps) => {
   const svgRef = useRef<SVGSVGElement>(null);
+  const [themeKey, setThemeKey] = useState(0);
 
+  useEffect(() => {
+    const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
+    const handleThemeChange = () => setThemeKey((prev) => prev + 1);
+
+    mediaQuery.addEventListener("change", handleThemeChange);
+    return () => mediaQuery.removeEventListener("change", handleThemeChange);
+  }, []);
   useEffect(() => {
     if (!data || data.length === 0 || isLoading) return;
 
@@ -21,7 +29,7 @@ export const LineChart = ({
     svg.selectAll("*").remove();
 
     const margin = mini
-      ? { top: 5, right: 10, bottom: 15, left: 30 }
+      ? { top: 5, right: 10, bottom: 15, left: 40 }
       : { top: 20, right: 30, bottom: 30, left: 55 };
 
     const innerWidth = width - margin.left - margin.right;
@@ -96,6 +104,13 @@ export const LineChart = ({
       .attr("stroke-width", mini ? 1.5 : 2)
       .attr("d", line);
 
+    // Check if dark mode is active
+    const isDarkMode = window.matchMedia(
+      "(prefers-color-scheme: dark)"
+    ).matches;
+    const textColor = isDarkMode ? "#e2e8f0" : "#6b7280"; // slate-200 : gray-500
+    const gridColor = isDarkMode ? "#475569" : "#d1d5db"; // slate-600 : gray-300
+
     if (!mini) {
       g.append("g")
         .attr("transform", `translate(0,${innerHeight})`)
@@ -107,13 +122,13 @@ export const LineChart = ({
         )
         .selectAll("text")
         .style("font-size", "12px")
-        .style("fill", "#6b7280");
+        .style("fill", textColor);
 
       g.append("g")
         .call(d3.axisLeft(yScale).tickFormat(d3.format("$.2f")).ticks(6))
         .selectAll("text")
         .style("font-size", "12px")
-        .style("fill", "#6b7280");
+        .style("fill", textColor);
 
       g.append("g")
         .attr("class", "grid")
@@ -125,6 +140,7 @@ export const LineChart = ({
             .tickFormat(() => "")
             .ticks(6)
         )
+        .style("stroke", gridColor)
         .style("stroke-dasharray", "2,2")
         .style("opacity", 0.3);
 
@@ -137,6 +153,7 @@ export const LineChart = ({
             .tickFormat(() => "")
             .ticks(6)
         )
+        .style("stroke", gridColor)
         .style("stroke-dasharray", "2,2")
         .style("opacity", 0.3);
     } else {
@@ -150,20 +167,20 @@ export const LineChart = ({
         )
         .selectAll("text")
         .style("font-size", "8px")
-        .style("fill", "#6b7280");
+        .style("fill", textColor);
 
       g.append("g")
-        .call(d3.axisLeft(yScale).tickFormat(d3.format("$,.0f")).ticks(3))
+        .call(d3.axisLeft(yScale).tickFormat(d3.format("$,.2f")).ticks(3))
         .selectAll("text")
         .style("font-size", "8px")
-        .style("fill", "#6b7280");
+        .style("fill", textColor);
 
       g.selectAll(".domain")
-        .style("stroke", "#d1d5db")
+        .style("stroke", gridColor)
         .style("stroke-width", "1px");
 
       g.selectAll(".tick line")
-        .style("stroke", "#d1d5db")
+        .style("stroke", gridColor)
         .style("stroke-width", "1px");
     }
 
@@ -203,25 +220,33 @@ export const LineChart = ({
 
     d3.selectAll(`.chart-tooltip-${symbol}`).remove();
 
+    // Dark mode aware tooltip styling
+    const tooltipBg = isDarkMode ? "#1d293d" : "white"; // gray-700 : white
+    const tooltipBorder = isDarkMode ? "#4b5563" : "#e5e7eb"; // gray-600 : gray-200
+    const tooltipText = isDarkMode ? "#f8fafc" : "#1f2937"; // slate-50 : gray-800
+
     const tooltip = d3
       .select("body")
       .append("div")
       .attr("class", `chart-tooltip chart-tooltip-${symbol}`)
       .style("position", "absolute")
       .style("visibility", "hidden")
-      .style("background", "white")
-      .style("border", "1px solid #e5e7eb")
+      .style("background", tooltipBg)
+      .style("border", `1px solid ${tooltipBorder}`)
       .style("border-radius", "8px")
       .style("padding", "12px")
       .style(
         "box-shadow",
-        "0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)"
+        isDarkMode
+          ? "0 10px 15px -3px rgba(0, 0, 0, 0.5), 0 4px 6px -2px rgba(0, 0, 0, 0.3)"
+          : "0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)"
       )
       .style("font-size", "12px")
       .style("font-family", "system-ui, -apple-system, sans-serif")
       .style("z-index", "9999")
       .style("pointer-events", "none")
-      .style("max-width", "250px");
+      .style("max-width", "250px")
+      .style("color", tooltipText);
 
     const overlay = g
       .append("rect")
@@ -233,7 +258,7 @@ export const LineChart = ({
     // Add vertical line for hover indicator
     const hoverLine = g
       .append("line")
-      .attr("stroke", "#6b7280")
+      .attr("stroke", textColor)
       .attr("stroke-width", 1)
       .attr("stroke-dasharray", "3,3")
       .attr("opacity", 0)
@@ -243,7 +268,7 @@ export const LineChart = ({
       .append("circle")
       .attr("r", 4)
       .attr("fill", lineColor)
-      .attr("stroke", "white")
+      .attr("stroke", isDarkMode ? "#1e293b" : "white") // slate-800 : white
       .attr("stroke-width", 2)
       .attr("opacity", 0)
       .style("pointer-events", "none");
@@ -287,18 +312,18 @@ export const LineChart = ({
           : 0;
 
         const tooltipContent = `
-          <div style="font-weight: bold; margin-bottom: 4px; font-size:16px; color: #1f2937;">${symbol}</div>
-          <div style="margin-bottom: 4px; font-weight:500; font-size:14px;">${d.price.toFixed(
-            2
-          )} USD
+          <div style="font-weight: bold; margin-bottom: 4px; font-size:16px; color: ${tooltipText};">${symbol}</div>
+          <div style="margin-bottom: 4px; font-weight:500; font-size:14px; color: ${tooltipText};">${d.price.toFixed(
+          2
+        )} USD
           </div>
-          <div style="margin-bottom: 4px;">
+          <div style="margin-bottom: 4px; color: ${tooltipText};">
             <span style="font-weight: 500;">Time:</span> ${d.timestamp.toLocaleTimeString(
               [],
               { hour: "2-digit", minute: "2-digit" }
             )}
           </div>
-          <div style="margin-bottom: 4px;">
+          <div style="margin-bottom: 4px; color: ${tooltipText};">
             <span style="font-weight: 500;">Date:</span> ${d.timestamp.toLocaleDateString()}
           </div>
           <div style="margin-bottom: 4px; color: ${
@@ -349,7 +374,7 @@ export const LineChart = ({
       hoverLine.attr("opacity", 0);
       hoverCircle.attr("opacity", 0);
     });
-  }, [data, width, height, mini, symbol, isLoading]);
+  }, [data, width, height, mini, symbol, isLoading, themeKey]);
 
   useEffect(() => {
     return () => {
@@ -360,7 +385,7 @@ export const LineChart = ({
   if (isLoading) {
     return (
       <div
-        className="flex items-center justify-center bg-gray-50 rounded"
+        className="flex items-center justify-center bg-slate-50 dark:bg-slate-700 rounded transition-colors duration-200"
         style={{ width, height }}
       >
         <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500"></div>
@@ -371,7 +396,7 @@ export const LineChart = ({
   if (!data || data.length === 0) {
     return (
       <div
-        className="flex items-center justify-center bg-gray-50 rounded text-gray-500 text-sm"
+        className="flex items-center justify-center bg-slate-50 dark:bg-slate-700 rounded text-slate-500 dark:text-slate-400 text-sm transition-colors duration-200"
         style={{ width, height }}
       >
         No chart data
@@ -384,8 +409,7 @@ export const LineChart = ({
       ref={svgRef}
       width={width}
       height={height}
-      className="rounded"
-      style={{ backgroundColor: "#fefefe" }}
+      className="rounded bg-white dark:bg-slate-900 transition-colors duration-200"
     />
   );
 };

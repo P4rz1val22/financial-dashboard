@@ -1,6 +1,8 @@
+// stock-card.tsx
+
 import { CardProps } from "@/types";
 import { LineChart } from "@/components/line-chart";
-import { useRef } from "react";
+import { useRef, useState, useEffect } from "react";
 
 function StockCard(props: Readonly<CardProps>) {
   const {
@@ -12,6 +14,21 @@ function StockCard(props: Readonly<CardProps>) {
     isGlobalLoading,
     chartWidth,
   } = props;
+
+  // FORCE REFRESH TIMER - Updates every minute to force chart re-render
+  const [forceUpdate, setForceUpdate] = useState(0);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setForceUpdate((prev) => prev + 1);
+      console.log(`🔄 Force refreshing chart for ${stock.symbol}`);
+    }, 60000); // Every 60 seconds
+
+    return () => clearInterval(interval);
+  }, [stock.symbol]);
+
+  const baseCardClasses =
+    "bg-white dark:bg-slate-900 rounded-lg shadow-md p-4 transition h-70 overflow-hidden";
 
   const cardRef = useRef<HTMLButtonElement>(null);
 
@@ -34,7 +51,6 @@ function StockCard(props: Readonly<CardProps>) {
 
       case "r":
       case "R":
-        // Retry shortcut for error cards
         if (stock.error) {
           e.preventDefault();
           onRetry(stock.symbol);
@@ -43,10 +59,11 @@ function StockCard(props: Readonly<CardProps>) {
     }
   };
 
+  // LOADING CARD
   if (stock.isLoading) {
     return (
       <div
-        className="bg-white rounded-lg shadow-md p-4 transition cursor-pointer h-70 overflow-hidden opacity-75"
+        className={`${baseCardClasses}`}
         tabIndex={0}
         role="button"
         aria-label={`Loading stock data for ${stock.symbol}`}
@@ -54,7 +71,7 @@ function StockCard(props: Readonly<CardProps>) {
       >
         <div className="flex flex-row items-center gap-1">
           <h2>{stock.symbol}</h2>
-          <div className="text-gray-500">Loading...</div>
+          <div className="text-slate-500">Loading...</div>
         </div>
       </div>
     );
@@ -68,11 +85,12 @@ function StockCard(props: Readonly<CardProps>) {
     return error;
   };
 
+  // ERROR CARD
   if (stock.error) {
     return (
       <button
         ref={cardRef}
-        className="bg-white rounded-lg shadow-md p-4 transition h-70 overflow-hidden border-l-4 border-red-500 focus:outline-none focus:ring-2 focus:ring-red-400 focus:ring-offset-2"
+        className={`${baseCardClasses} border-l-4 border-red-500 focus:outline-none focus:ring-2 focus:ring-red-400 focus:ring-offset-2 focus:ring-offset-white dark:focus:ring-offset-slate-900`}
         tabIndex={0}
         role="button"
         aria-label={`Stock ${stock.symbol} failed to load. Press R to retry, Delete to remove.`}
@@ -91,7 +109,7 @@ function StockCard(props: Readonly<CardProps>) {
                 e.stopPropagation();
                 onRetry(stock.symbol);
               }}
-              className="bg-white border-gray-300 border-1 hover:text-blue-500 p-2 cursor-pointer rounded-md text-md hover:border-blue-500 transition focus:outline-none focus:ring-2 focus:ring-blue-400"
+              className="bg-white border-slate-300 border-1 hover:text-blue-500 dark:bg-slate-900 dark:border-slate-600 p-2 cursor-pointer rounded-md text-md hover:border-blue-500 transition focus:outline-none focus:ring-2 focus:ring-blue-400"
               aria-label={`Retry loading ${stock.symbol}`}
             >
               Retry
@@ -101,7 +119,7 @@ function StockCard(props: Readonly<CardProps>) {
                 e.stopPropagation();
                 onRemove(stock.symbol);
               }}
-              className="bg-white border-gray-300 border-1 hover:text-red-500 p-2 cursor-pointer rounded-md text-md hover:border-red-500 transition focus:outline-none focus:ring-2 focus:ring-red-400"
+              className="bg-white border-slate-300 dark:bg-slate-900 dark:border-slate-600 border-1 hover:text-red-500  p-2 cursor-pointer rounded-md text-md hover:border-red-500 transition focus:outline-none focus:ring-2 focus:ring-red-400"
               aria-label={`Remove ${stock.symbol} from watchlist`}
             >
               Remove
@@ -112,11 +130,12 @@ function StockCard(props: Readonly<CardProps>) {
     );
   }
 
+  // MAIN CARD
   return (
     <button
       ref={cardRef}
-      className={`bg-white rounded-lg shadow-md p-4 transition cursor-crosshair h-70 overflow-hidden focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-offset-2 text-left${
-        isSelected ? "ring-2 ring-blue-500" : ""
+      className={`${baseCardClasses} cursor-crosshair focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-offset-2 focus:ring-offset-white dark:focus:ring-offset-slate-900 text-left${
+        isSelected ? " ring-2 ring-blue-500" : ""
       }`}
       onClick={() => onSelect(stock)}
       onKeyDown={handleKeyDown}
@@ -145,16 +164,18 @@ function StockCard(props: Readonly<CardProps>) {
           </h4>
         </div>
 
-        <p className="text-sm text-gray-600">{stock.companyName}</p>
+        <p className="text-sm text-slate-600 dark:text-slate-300">
+          {stock.companyName}
+        </p>
 
-        <p className="text-lg font-semibold">
+        <p className="text-lg font-semibold text-slate-900 dark:text-white">
           ${stock.currentPrice?.toFixed(2)}
         </p>
 
         <div className="flex-1 min-h-[50px] flex items-center justify-center my-1 pointer-events-none">
           {stock.priceHistory.length > 0 ? (
             <LineChart
-              key={`${stock.symbol}-${isSelected}`}
+              key={`${stock.symbol}-${isSelected}-${forceUpdate}`}
               data={stock.priceHistory}
               width={chartWidth}
               height={150}
@@ -163,7 +184,7 @@ function StockCard(props: Readonly<CardProps>) {
               isLoading={isGlobalLoading}
             />
           ) : (
-            <div className="text-xs text-gray-400 text-center">
+            <div className="text-xs text-slate-400 dark:text-slate-500 text-center">
               Loading chart data...
             </div>
           )}
@@ -174,7 +195,7 @@ function StockCard(props: Readonly<CardProps>) {
             e.stopPropagation();
             onRemove(stock.symbol);
           }}
-          className="text-red-500 hover:text-red-700 text-sm cursor-pointer self-start focus:outline-none focus:ring-2 focus:ring-red-400 focus:ring-offset-2 rounded px-1"
+          className="text-red-500 hover:text-red-700 text-sm cursor-pointer self-start focus:outline-none focus:ring-2 focus:ring-red-400 dark:focus:ring-offset-slate-900 focus:ring-offset-2 rounded px-1 transition"
           aria-label={`Remove ${stock.symbol} from watchlist`}
         >
           Remove

@@ -53,7 +53,7 @@ export const SearchDropdown = ({
   if (isSearching) {
     dropdownContent = (
       <div className="p-3 text-center text-sm">
-        <div className="animate-spin inline-block w-4 h-4 border-2 border-gray-300 border-t-blue-500 rounded-full mr-2"></div>
+        <div className="animate-spin inline-block w-4 h-4 border-2 border-gray-300 dark:border-slate-600 border-t-blue-500 rounded-full mr-2"></div>
         Searching...
       </div>
     );
@@ -70,15 +70,14 @@ export const SearchDropdown = ({
               ref={index === selectedIndex ? selectedItemRef : null}
               onClick={() => onSelectStock(result.symbol)}
               onMouseEnter={() => onKeyboardSelect(index)}
-              className={`w-full px-3 py-2 text-left cursor-pointer border-b-1 border-gray-200 transition-colors ${
+              className={`w-full px-3 py-2 text-left cursor-pointer border-b-1 border-gray-200 dark:border-slate-600 transition-colors ${
                 index === selectedIndex
-                  ? "bg-blue-100 text-blue-900"
-                  : "hover:bg-gray-100 focus:bg-gray-100"
+                  ? "bg-blue-100  dark:bg-slate-700"
+                  : "hover:bg-gray-100  dark:hover:bg-slate-700 dark:focus:bg-slate-700"
               } focus:outline-none`}
-              aria-selected={index === selectedIndex}
             >
               <div className="flex items-baseline gap-2">
-                <span className="font-medium text-gray-900">
+                <span className="font-medium text-gray-900 dark:text-white">
                   {result.symbol}
                 </span>
                 <span className="text-sm text-gray-500">
@@ -95,7 +94,7 @@ export const SearchDropdown = ({
   return (
     <div
       ref={dropdownRef}
-      className="absolute top-13 left-0 right-0 bg-white border border-gray-300 rounded-md shadow-lg z-50 max-h-60 overflow-y-auto"
+      className="absolute top-13 left-0 right-0 bg-white dark:bg-slate-900 border border-gray-300 dark:border-slate-600 rounded-md shadow-lg z-50 max-h-60 overflow-y-auto"
       role="listbox"
       aria-label="Search results"
     >

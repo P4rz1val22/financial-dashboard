@@ -10,6 +10,8 @@ import { CompanyNameResolver } from "@/utils/company-names";
 
 const API_KEY = import.meta.env.VITE_FINNHUB_API_KEY;
 const BASE_URL = "https://finnhub.io/api/v1";
+const quoteCache = new Map<string, { data: Stock; timestamp: number }>();
+const QUOTE_CACHE_DURATION = 30000; // 30 seconds
 
 //////////////////////////// Error Checking /////////////////////////////////
 
@@ -79,7 +81,18 @@ const toStartCase = (str: string): string => {
 
 ////////////////////////////////// Core functionality //////////////////////////////////
 
-const companyNameCache = new Map<string, string>();
+const companyNameCache = new Map<string, string>(
+  // Load from localStorage on startup
+  JSON.parse(localStorage.getItem("companyNameCache") || "[]")
+);
+
+// Add this helper function:
+const saveCompanyNameCache = () => {
+  localStorage.setItem(
+    "companyNameCache",
+    JSON.stringify([...companyNameCache])
+  );
+};
 
 export const stockService = {
   async getQuoteWithTimeout(
@@ -108,6 +121,7 @@ export const stockService = {
     const mappedName = CompanyNameResolver.getCompanyName(symbolUpper);
     if (mappedName) {
       companyNameCache.set(symbolUpper, mappedName);
+      saveCompanyNameCache(); // Add this line
       return mappedName;
     }
 
@@ -121,6 +135,8 @@ export const stockService = {
       if (response.status === 429) {
         console.warn(`Rate limited for company name: ${symbolUpper}`);
         companyNameCache.set(symbolUpper, symbolUpper);
+        companyNameCache.set(symbolUpper, symbolUpper);
+        saveCompanyNameCache(); // Add this line
         return symbolUpper;
       }
 
@@ -143,10 +159,12 @@ export const stockService = {
       }
 
       companyNameCache.set(symbolUpper, companyName);
+      saveCompanyNameCache(); // Add this line
       return companyName;
     } catch (error) {
       console.warn(`Error fetching company name for ${symbolUpper}:`, error);
       companyNameCache.set(symbolUpper, symbolUpper);
+      saveCompanyNameCache(); // Add this line
       return symbolUpper;
     }
   },
@@ -181,6 +199,11 @@ export const stockService = {
   },
 
   async getQuote(symbol: string): Promise<Stock> {
+    const cached = quoteCache.get(symbol);
+    if (cached && Date.now() - cached.timestamp < QUOTE_CACHE_DURATION) {
+      return { ...cached.data, lastUpdated: new Date() };
+    }
+
     try {
       validateAPIKey(symbol);
 

@@ -59,6 +59,19 @@ export interface Stock {
   priceHistory: PricePoint[];
 }
 
+export interface StockUpdate {
+  symbol: string;
+  data: FinnhubQuoteResponse;
+  fromCache?: boolean;
+}
+
+export interface ServiceWorkerStockUpdateEvent extends MessageEvent {
+  data: {
+    type: "STOCK_UPDATE";
+    updates: StockUpdate[];
+  };
+}
+
 // ===== COMPONENT PROP TYPES =====
 
 /**

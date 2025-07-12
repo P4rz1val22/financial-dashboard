@@ -14,7 +14,6 @@ import { SessionStorageManager } from "@/utils/session-storage";
  * - Rate limiting and timeout protection
  * - Search functionality with debouncing
  * - Automatic recovery from stuck/failed states
- * - Single stock refresh after adding new stocks
  *
  * @returns Complete stock management interface
  */
@@ -34,7 +33,7 @@ const useStockData = (): UseStockDataReturn => {
 
   const [isGlobalLoading, setIsGlobalLoading] = useState(false);
   const [globalError, setGlobalError] = useState<string | undefined>();
-  const maxWatchlistSize = 25;
+  const maxWatchlistSize = 12;
   const MANUAL_REFRESH_COOLDOWN = 30000;
 
   const [searchQuery, setSearchQuery] = useState("");
@@ -43,8 +42,20 @@ const useStockData = (): UseStockDataReturn => {
   );
   const [isSearching, setIsSearching] = useState(false);
   const hasInitialized = useRef(false);
+  const hasReloaded = useRef(false);
 
   const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const refreshTimeoutRef = useRef<NodeJS.Timeout>();
+
+  // Nuclear cooldown helpers - persisted in localStorage
+  const getLastRefreshTime = (): Date | null => {
+    const stored = localStorage.getItem("lastRefreshTime");
+    return stored ? new Date(stored) : null;
+  };
+
+  const setLastRefreshTime = (date: Date) => {
+    localStorage.setItem("lastRefreshTime", date.toISOString());
+  };
 
   // Auto-save to session storage whenever state changes
   useEffect(() => {
@@ -61,8 +72,6 @@ const useStockData = (): UseStockDataReturn => {
 
   /**
    * Searches for stocks using the Finnhub API with debouncing
-   *
-   * @param query - Search term (stock symbol or company name)
    */
   const searchStocks = useCallback((query: string) => {
     setSearchQuery(query);
@@ -94,6 +103,9 @@ const useStockData = (): UseStockDataReturn => {
       if (searchTimeoutRef.current) {
         clearTimeout(searchTimeoutRef.current);
       }
+      if (refreshTimeoutRef.current) {
+        clearTimeout(refreshTimeoutRef.current);
+      }
     };
   }, []);
 
@@ -107,9 +119,6 @@ const useStockData = (): UseStockDataReturn => {
 
   /**
    * Adds a new stock to the watchlist with initial data fetch
-   * Includes single stock refresh after 1 second for better UX
-   *
-   * @param symbol - Stock symbol to add
    */
   const addStock = async (symbol: string) => {
     const symbolUpper = symbol.toUpperCase();
@@ -151,7 +160,7 @@ const useStockData = (): UseStockDataReturn => {
       );
       toast.success(`Added ${stock.companyName} to watchlist`);
 
-      // UX Improvement: Single stock refresh after 1 second for better chart visualization
+      // Add initial data point after 1 second
       setTimeout(() => {
         refreshSingleStock(symbolUpper);
       }, 1000);
@@ -162,8 +171,6 @@ const useStockData = (): UseStockDataReturn => {
 
   /**
    * Removes a stock from the watchlist
-   *
-   * @param symbol - Stock symbol to remove
    */
   const removeStock = (symbol: string) => {
     const symbolUpper = symbol.toUpperCase();
@@ -180,8 +187,6 @@ const useStockData = (): UseStockDataReturn => {
 
   /**
    * Selects a stock for detailed view
-   *
-   * @param stock - Stock to select, or null to clear selection
    */
   const selectStock = (stock: Stock | null) => {
     setSelectedStock(stock);
@@ -196,10 +201,6 @@ const useStockData = (): UseStockDataReturn => {
 
   /**
    * Wraps a promise with a timeout to prevent hanging requests
-   *
-   * @param promise - Promise to wrap
-   * @param timeoutMs - Timeout in milliseconds
-   * @returns Promise that resolves or rejects within the timeout
    */
   const withTimeout = <T>(
     promise: Promise<T>,
@@ -218,9 +219,6 @@ const useStockData = (): UseStockDataReturn => {
 
   /**
    * Handles stock loading errors with appropriate user feedback
-   *
-   * @param symbol - Stock symbol that failed
-   * @param error - Error object or message
    */
   const handleStockError = (symbol: string, error: unknown) => {
     let errorMsg = "Unknown error";
@@ -254,11 +252,9 @@ const useStockData = (): UseStockDataReturn => {
 
   /**
    * Refreshes a single stock with timeout protection
-   * Used for UX improvement after adding stocks
-   *
-   * @param symbol - Stock symbol to refresh
    */
   const refreshSingleStock = async (symbol: string) => {
+    console.log("Refreshing Single Stock");
     try {
       const stock = await withTimeout(stockService.getQuote(symbol), 5000);
 
@@ -272,14 +268,12 @@ const useStockData = (): UseStockDataReturn => {
         })
       );
     } catch (error) {
-      // Silent fail for single stock refresh - user can manually retry if needed
+      // Silent fail for single stock refresh
     }
   };
 
   /**
    * Retries loading a failed stock with timeout protection
-   *
-   * @param symbol - Stock symbol to retry
    */
   const retryStock = async (symbol: string) => {
     const symbolUpper = symbol.toUpperCase();
@@ -313,11 +307,24 @@ const useStockData = (): UseStockDataReturn => {
 
   /**
    * Refreshes all stocks in the watchlist with rate limiting
-   *
-   * @param isManual - Whether this is a manual refresh (applies rate limiting)
    */
   const refreshAllStocks = useCallback(
     async (isManual = false) => {
+      if (!isManual) {
+        const now = new Date();
+        const lastRefresh = getLastRefreshTime();
+
+        if (lastRefresh && now.getTime() - lastRefresh.getTime() < 60000) {
+          return;
+        }
+
+        setLastRefreshTime(now);
+      }
+
+      if (refreshTimeoutRef.current) {
+        clearTimeout(refreshTimeoutRef.current);
+      }
+
       if (isManual) {
         const rateLimit = RateLimiter.isRefreshAllowed(lastManualRefresh);
 
@@ -341,9 +348,6 @@ const useStockData = (): UseStockDataReturn => {
 
   /**
    * Performs the actual refresh operation for all stocks
-   * Handles stuck stocks and failed stocks appropriately
-   *
-   * @param isManual - Whether this is a manual refresh
    */
   const performRefresh = useCallback(
     async (isManual: boolean) => {
@@ -351,7 +355,7 @@ const useStockData = (): UseStockDataReturn => {
         const now = new Date();
         const twoMinutesAgo = now.getTime() - 2 * 60 * 1000;
 
-        // Reset stuck loading stocks for auto-refresh
+        // Reset stuck loading stocks
         let processedWatchlist = currentWatchlist;
         if (!isManual) {
           processedWatchlist = currentWatchlist.map((stock) => {
@@ -369,7 +373,6 @@ const useStockData = (): UseStockDataReturn => {
           });
         }
 
-        // UX Improvement: Include failed stocks in refresh for auto-retry
         const stocksToRefresh = processedWatchlist.filter(
           (stock) => !stock.isLoading && (!stock.error || !isManual)
         );
@@ -434,9 +437,25 @@ const useStockData = (): UseStockDataReturn => {
     [lastManualRefresh]
   );
 
+  // AUTO-REFRESH STOCKS EVERY 60 SECONDS
+  useEffect(() => {
+    if (watchlist.length > 0) {
+      const refreshInterval = setInterval(() => {
+        watchlist.forEach((stock, index) => {
+          setTimeout(() => {
+            if (!stock.isLoading && !stock.error) {
+              refreshSingleStock(stock.symbol);
+            }
+          }, index * 200);
+        });
+      }, 60000);
+
+      return () => clearInterval(refreshInterval);
+    }
+  }, [watchlist]);
+
   /**
-   * Initialization effect that handles session restoration and auto-recovery
-   * Runs once on component mount
+   * Initialization effect - runs once on component mount
    */
   useEffect(() => {
     if (hasInitialized.current) return;
@@ -444,10 +463,22 @@ const useStockData = (): UseStockDataReturn => {
 
     // Handle stocks stuck in loading state from previous session
     const stuckLoadingStocks = watchlist.filter((stock) => stock.isLoading);
-
-    // UX Improvement: Handle stocks that failed in previous session
     const failedStocks = watchlist.filter((stock) => stock.error);
 
+    const handleVisibilityChange = () => {
+      if (!document.hidden) {
+        const now = new Date();
+        const lastRefresh = getLastRefreshTime();
+
+        if (!lastRefresh || now.getTime() - lastRefresh.getTime() > 60000) {
+          refreshAllStocks();
+        }
+      }
+    };
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    // Auto-retry stuck/failed stocks
     if (stuckLoadingStocks.length > 0) {
       setIsGlobalLoading(true);
 
@@ -478,41 +509,20 @@ const useStockData = (): UseStockDataReturn => {
       Promise.allSettled(retryPromises).then(() => {
         setIsGlobalLoading(false);
       });
-
-      toast(
-        `Auto-retrying ${stuckLoadingStocks.length} stocks that were loading...`,
-        {
-          icon: "🔄",
-        }
-      );
     }
 
-    // UX Improvement: Auto-retry failed stocks on page load
+    // Auto-retry failed stocks
     if (failedStocks.length > 0) {
       setTimeout(() => {
         failedStocks.forEach((stock) => {
           refreshSingleStock(stock.symbol);
         });
-      }, 2000); // Delay to avoid overwhelming the API
+      }, 2000);
     }
 
-    if (watchlist.length > 0) {
-      const healthyStocks =
-        watchlist.length - stuckLoadingStocks.length - failedStocks.length;
-      if (healthyStocks > 0) {
-        toast.success(
-          `Welcome back! Restored ${watchlist.length} stocks from your session`
-        );
-      }
-    }
-
-    // Start regular refresh cycle
-    refreshAllStocks();
-    const interval = setInterval(() => {
-      refreshAllStocks();
-    }, 60000);
-
-    return () => clearInterval(interval);
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
   }, [refreshAllStocks, watchlist.length]);
 
   return {

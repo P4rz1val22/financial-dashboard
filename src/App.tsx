@@ -140,15 +140,6 @@ function App() {
   const handleSearchKeyDown = async (
     e: React.KeyboardEvent<HTMLInputElement>
   ) => {
-    console.log(
-      "🔍 Key pressed:",
-      e.key,
-      "Dropdown visible:",
-      isDropdownVisible,
-      "Results:",
-      filteredSearchResults.length
-    );
-
     if (!isDropdownVisible || filteredSearchResults.length === 0) {
       // Original behavior when dropdown is not visible
       if (e.key === "Enter") {
@@ -164,29 +155,24 @@ function App() {
     // Keyboard navigation when dropdown is visible
     switch (e.key) {
       case "ArrowDown":
-        console.log("⬇️ Arrow down pressed, current index:", selectedIndex);
         e.preventDefault();
         setSelectedIndex((prev) => {
           const newIndex =
             prev < filteredSearchResults.length - 1 ? prev + 1 : 0;
-          console.log("⬇️ New index:", newIndex);
           return newIndex;
         });
         break;
 
       case "ArrowUp":
-        console.log("⬆️ Arrow up pressed, current index:", selectedIndex);
         e.preventDefault();
         setSelectedIndex((prev) => {
           const newIndex =
             prev > 0 ? prev - 1 : filteredSearchResults.length - 1;
-          console.log("⬆️ New index:", newIndex);
           return newIndex;
         });
         break;
 
       case "Enter":
-        console.log("✅ Enter pressed, selected index:", selectedIndex);
         e.preventDefault();
         if (
           selectedIndex >= 0 &&
@@ -223,18 +209,18 @@ function App() {
   };
 
   return (
-    <div className="p-4 bg-gray-200 flex flex-col gap-2 w-screen min-h-screen -mb-6">
-      <div className="bg-white rounded-lg shadow-md p-4 transition ">
-        <h1 className="text-3xl font-bold text-gray-800">
+    <div className="p-4 bg-slate-200 dark:bg-black flex flex-col gap-2 w-screen min-h-screen -mb-6 transition-colors duration-200">
+      <div className="bg-white dark:bg-slate-900 rounded-lg shadow-md p-4 transition-colors duration-200">
+        <h1 className="text-3xl font-bold text-slate-900 dark:text-white">
           Financial Dashboard
         </h1>
       </div>
 
-      <div className="bg-white rounded-lg shadow-md p-2 transition">
-        <h1 className="text-xl font-light text-gray-800">
+      <div className="bg-white dark:bg-slate-900 rounded-lg shadow-md p-2 transition-colors duration-200">
+        <h1 className="text-xl font-light text-slate-900 dark:text-white">
           <div className="relative">
             <input
-              className="w-full focus-visible:!!!ring-offset-8 p-2"
+              className="p-2 py-1 text-slate-900 border-b dark:text-white border-slate-200 dark:border-slate-600 w-full transition-colors duration-200 focus:outline-none focus:ring-0 focus:ring-transparent"
               placeholder="Search for a Stock"
               onChange={(e) => handleSearchChange(e.target.value)}
               value={tempQuery}
@@ -261,14 +247,14 @@ function App() {
             />
           </div>
 
-          <div className="text-sm text-gray-500 p-1 px-2 flex flex-row gap-2 justify-between">
+          <div className="text-sm text-gray-500 dark:text-gray-400 p-1 pt-3 px-2 flex flex-row gap-2 justify-between">
             <button
               onClick={() => refreshAllStocks(true)}
               disabled={isRefreshDisabled() || isGlobalLoading}
-              className={`flex flex-row items-center gap-1 select-none ${
+              className={`flex flex-row items-center gap-1 select-none duration-200 focus:outline-none focus:ring-2 focus:ring-blue-400 transition rounded p-1 ${
                 isGlobalLoading || isRefreshDisabled()
-                  ? "cursor-not-allowed"
-                  : "hover:underline cursor-pointer"
+                  ? "cursor-not-allowed opacity-50"
+                  : "hover:underline cursor-pointer hover:text-gray-700 dark:hover:text-gray-300"
               }`}
             >
               <RefreshCw
