@@ -119,6 +119,11 @@ export interface SearchDropdownProps {
   isSearching: boolean;
 }
 
+export interface SearchDropdownWithKeyboardProps extends SearchDropdownProps {
+  selectedIndex: number;
+  onKeyboardSelect: (index: number) => void;
+}
+
 // ===== HOOK RETURN TYPES =====
 
 /**

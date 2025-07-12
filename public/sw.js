@@ -1,24 +1,19 @@
 // public/sw.js
-console.log("📡 Stock Service Worker loaded");
 
 let refreshInterval = null;
 let heartbeatInterval = null;
 let apiKey = null;
 let symbols = [];
 
-// Quote cache in service worker (separate from main thread)
 const quoteCache = new Map();
-const QUOTE_CACHE_DURATION = 30000; // 30 seconds
+const QUOTE_CACHE_DURATION = 30000;
 
-// Keep service worker alive with heartbeat
 const startHeartbeat = () => {
   if (heartbeatInterval) {
     clearInterval(heartbeatInterval);
   }
 
   heartbeatInterval = setInterval(() => {
-    console.log("💓 Service Worker heartbeat");
-    // Send heartbeat to all clients
     self.clients.matchAll().then((clients) => {
       clients.forEach((client) => {
         client.postMessage({
@@ -27,39 +22,30 @@ const startHeartbeat = () => {
         });
       });
     });
-  }, 30000); // Every 30 seconds
+  }, 30000);
 };
 
 self.addEventListener("message", (event) => {
-  console.log("📨 Service Worker received message:", event.data.type);
-
   switch (event.data.type) {
     case "START_BACKGROUND_REFRESH":
       apiKey = event.data.apiKey;
       symbols = event.data.symbols;
 
-      console.log("🚀 Starting background refresh for symbols:", symbols);
-
-      // Clear existing intervals
       if (refreshInterval) {
         clearInterval(refreshInterval);
       }
 
-      // Start heartbeat to keep service worker alive
       startHeartbeat();
 
-      // Start background refresh - NEVER gets throttled!
       refreshInterval = setInterval(() => {
         performBackgroundRefresh();
-      }, 60000); // 60 seconds
+      }, 60000);
 
-      // Do initial refresh
       performBackgroundRefresh();
       break;
 
     case "UPDATE_SYMBOLS":
       symbols = event.data.symbols;
-      console.log("📝 Updated symbols:", symbols);
       break;
 
     case "STOP_BACKGROUND_REFRESH":
@@ -71,30 +57,32 @@ self.addEventListener("message", (event) => {
         clearInterval(heartbeatInterval);
         heartbeatInterval = null;
       }
-      console.log("⏹️ Stopped background refresh");
       break;
   }
 });
 
+/**
+ * Performs a background refresh of stock quotes for the specified symbols.
+ * Fetches updated quotes from the Finnhub API unless cached data is still valid.
+ * Updates the cache and notifies all connected clients with the latest stock data,
+ * a heartbeat message, or an error if the refresh fails.
+ *
+ * @async
+ * @function
+ * @returns {Promise<void>} Resolves when the refresh and client notifications are complete.
+ */
 async function performBackgroundRefresh() {
   if (!apiKey || symbols.length === 0) {
-    console.log("⚠️ No API key or symbols, skipping refresh");
     return;
   }
-
-  console.log("🔄 Performing background refresh...");
 
   try {
     const updates = await Promise.all(
       symbols.map(async (symbol) => {
-        // Check cache first
         const cached = quoteCache.get(symbol);
         if (cached && Date.now() - cached.timestamp < QUOTE_CACHE_DURATION) {
-          console.log(`💾 Using cached data for ${symbol}`);
           return { symbol, data: cached.data, fromCache: true };
         }
-
-        console.log(`🌐 Fetching fresh data for ${symbol}`);
 
         const response = await fetch(
           `https://finnhub.io/api/v1/quote?symbol=${symbol}&token=${apiKey}`
@@ -113,9 +101,6 @@ async function performBackgroundRefresh() {
       })
     );
 
-    console.log("✅ Background refresh complete, sending updates...");
-
-    // Send updates to all clients (tabs)
     const clients = await self.clients.matchAll();
     clients.forEach((client) => {
       client.postMessage({
@@ -125,7 +110,6 @@ async function performBackgroundRefresh() {
       });
     });
 
-    // Send heartbeat to keep alive
     clients.forEach((client) => {
       client.postMessage({
         type: "HEARTBEAT",
@@ -133,9 +117,6 @@ async function performBackgroundRefresh() {
       });
     });
   } catch (error) {
-    console.error("❌ Background refresh failed:", error);
-
-    // Notify clients of the error
     const clients = await self.clients.matchAll();
     clients.forEach((client) => {
       client.postMessage({
@@ -147,20 +128,14 @@ async function performBackgroundRefresh() {
   }
 }
 
-// Install event
 self.addEventListener("install", (event) => {
-  console.log("🔧 Service Worker installing");
   self.skipWaiting();
 });
 
-// Activate event
 self.addEventListener("activate", (event) => {
-  console.log("⚡ Service Worker activated");
   event.waitUntil(self.clients.claim());
 });
 
-// Keep service worker alive on fetch events
 self.addEventListener("fetch", (event) => {
-  // Don't actually handle fetches, just use this to stay alive
   return;
 });

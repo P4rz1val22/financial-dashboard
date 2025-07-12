@@ -2,6 +2,19 @@ import { useEffect, useRef, useState, useMemo, useCallback } from "react";
 import * as d3 from "d3";
 import { LineChartProps } from "@/types";
 
+/**
+ * Renders an interactive line chart using D3.js for financial data visualization.
+ *
+ * @param data - Array of data points containing price, timestamp, and change information.
+ * @param width - Width of the chart in pixels. Defaults to 400.
+ * @param height - Height of the chart in pixels. Defaults to 200.
+ * @param mini - If true, renders a compact version of the chart.
+ * @param symbol - The financial symbol (e.g., stock ticker) to display in tooltips.
+ * @param isLoading - If true, displays a loading spinner instead of the chart.
+ *
+ * @returns A React component rendering the SVG chart or a loading/empty state.
+ *
+ */
 export const LineChart = ({
   data,
   width = 400,

@@ -3,6 +3,14 @@ import { DetailedStockModalProps } from "@/types";
 import { LineChart } from "@/components/line-chart";
 import { X } from "lucide-react";
 
+/**
+ * Displays a modal with detailed information about the selected stock, including price chart,
+ * key metrics, and recent price history.
+ *
+ * @param stock - The stock data to display, including symbol, company name, current price, price history, and metrics.
+ * @param onClose - Callback to close the modal.
+ * @param isLoading - Indicates if the price chart data is loading.
+ */
 export const DetailedStockModal = ({
   stock,
   onClose,
@@ -11,12 +19,10 @@ export const DetailedStockModal = ({
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const [chartWidth, setChartWidth] = useState(790);
 
-  // Update chart width on resize
   useEffect(() => {
     const updateChartWidth = () => {
       if (chartContainerRef.current) {
         const containerWidth = chartContainerRef.current.offsetWidth;
-        // Subtract padding (32px total: 16px each side from p-4)
         setChartWidth(containerWidth - 36);
       }
     };
@@ -26,7 +32,7 @@ export const DetailedStockModal = ({
     return () => window.removeEventListener("resize", updateChartWidth);
   }, []);
 
-  // Close modal on Escape key
+  // To close modal when esc is pressed
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
@@ -38,7 +44,7 @@ export const DetailedStockModal = ({
     return () => document.removeEventListener("keydown", handleEscape);
   }, [onClose]);
 
-  // Prevent body scroll when modal is open
+  // If modal is open, prevent the scroll
   useEffect(() => {
     document.body.style.overflow = "hidden";
     return () => {

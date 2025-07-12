@@ -8,11 +8,11 @@ export interface RateLimitResult {
 
 export class RateLimiter {
   private static readonly STORAGE_KEY = "financial-dashboard-refresh-history";
-  private static readonly BASIC_COOLDOWN = 30000; // 30 seconds
-  private static readonly BURST_LIMIT = 3; // 3 refreshes
-  private static readonly BURST_WINDOW = 2 * 60 * 1000; // 2 minutes
-  private static readonly HOURLY_LIMIT = 20; // 20 refreshes
-  private static readonly HOURLY_WINDOW = 60 * 60 * 1000; // 1 hour
+  private static readonly BASIC_COOLDOWN = 30000;
+  private static readonly BURST_LIMIT = 3;
+  private static readonly BURST_WINDOW = 2 * 60 * 1000;
+  private static readonly HOURLY_LIMIT = 20;
+  private static readonly HOURLY_WINDOW = 60 * 60 * 1000;
 
   static getRefreshHistory(): Date[] {
     try {
@@ -29,11 +29,9 @@ export class RateLimiter {
   static addToRefreshHistory(timestamp: Date): void {
     try {
       const history = this.getRefreshHistory();
-      const newHistory = [...history, timestamp].slice(-10); // Keep last 10
+      const newHistory = [...history, timestamp].slice(-10);
       sessionStorage.setItem(this.STORAGE_KEY, JSON.stringify(newHistory));
-    } catch {
-      // Ignore storage errors
-    }
+    } catch {}
   }
 
   static isRefreshAllowed(lastManualRefresh: Date | null): RateLimitResult {

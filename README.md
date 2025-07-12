@@ -105,14 +105,14 @@ Auto-refresh (5min) → Batch API Calls → Optimistic Updates → Chart Animati
 
 ## 🛠️ **Tech Stack Details**
 
-| Category        | Technology                     | Purpose                             |
-| --------------- | ------------------------------ | ----------------------------------- |
-| **Frontend**    | React 18 + TypeScript          | Type-safe component architecture    |
-| **Styling**     | Tailwind CSS 4.x               | Utility-first responsive design     |
-| **Charts**      | D3.js v7                       | Interactive data visualizations     |
-| **Build Tool**  | Vite 6.x                       | Lightning-fast development & builds |
-| **Data Source** | Finnhub API                    | Real-time stock market data         |
-| **UI/UX**       | Lucide Icons + React Hot Toast | Modern iconography & notifications  |
+| Category        | Technology                                                                            | Purpose                             |
+| --------------- | ------------------------------------------------------------------------------------- | ----------------------------------- |
+| **Frontend**    | React 18 + TypeScript                                                                 | Type-safe component architecture    |
+| **Styling**     | [Tailwind CSS](https://v3.tailwindcss.com/) 4.x                                       | Utility-first responsive design     |
+| **Charts**      | [D3.js](https://d3js.org/) v7                                                         | Interactive data visualizations     |
+| **Build Tool**  | [Vite](https://vite.dev/) 6.x                                                         | Lightning-fast development & builds |
+| **Data Source** | [Finnhub API](https://finnhub.io/docs/api)                                            | Real-time stock market data         |
+| **UI/UX**       | [Lucide Icons](https://lucide.dev/) + [React Hot Toast](https://react-hot-toast.com/) | Modern iconography & notifications  |
 
 ## 🤝 **Contributing**
 

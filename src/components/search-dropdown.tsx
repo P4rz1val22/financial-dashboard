@@ -1,11 +1,17 @@
-import { SearchDropdownProps } from "@/types";
+import { SearchDropdownWithKeyboardProps } from "@/types";
 import { useEffect, useRef } from "react";
 
-interface SearchDropdownWithKeyboardProps extends SearchDropdownProps {
-  selectedIndex: number;
-  onKeyboardSelect: (index: number) => void;
-}
-
+/**
+ * Renders a dropdown component for displaying search results with keyboard and mouse navigation support.
+ *
+ * @param searchResults - An array of search result objects containing `symbol` and `description`.
+ * @param isVisible - Boolean indicating whether the dropdown is visible.
+ * @param onSelectStock - Callback invoked when a stock is selected, receives the selected symbol.
+ * @param onClose - Callback invoked when the dropdown should be closed (e.g., clicking outside).
+ * @param isSearching - Boolean indicating whether a search is currently in progress.
+ * @param selectedIndex - The index of the currently selected item for keyboard navigation.
+ * @param onKeyboardSelect - Callback invoked when an item is selected via keyboard or mouse hover, receives the index.
+ */
 export const SearchDropdown = ({
   searchResults,
   isVisible,
@@ -37,7 +43,6 @@ export const SearchDropdown = ({
     };
   }, [isVisible, onClose]);
 
-  // Scroll selected item into view
   useEffect(() => {
     if (selectedItemRef.current && selectedIndex >= 0) {
       selectedItemRef.current.scrollIntoView({

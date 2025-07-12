@@ -25,7 +25,6 @@ export class SessionStorageManager {
 
       const parsed = JSON.parse(stored);
 
-      // Special handling for different data types
       if (key === STORAGE_KEYS.WATCHLIST && Array.isArray(parsed)) {
         return parsed.map((stock) => ({
           ...stock,

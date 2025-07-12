@@ -1,9 +1,33 @@
-// stock-card.tsx
-
 import { CardProps } from "@/types";
 import { LineChart } from "@/components/line-chart";
 import { useRef, useState, useEffect } from "react";
 
+/**
+ * Renders a card component displaying stock information, including symbol, company name,
+ * current price, price change, and a mini line chart of the price history.
+ *
+ * Handles three states:
+ * - Loading: Shows a loading indicator while stock data is being fetched.
+ * - Error: Displays an error message with options to retry or remove the stock.
+ * - Loaded: Shows stock details and chart, with options to select or remove the stock.
+ *
+ * Supports keyboard accessibility:
+ * - Enter/Space: Selects the stock.
+ * - Delete/Backspace: Removes the stock.
+ * - R: Retries loading if there was an error.
+ *
+ * Props:
+ * @param props
+ * @param props.stock - The stock data to display.
+ * @param props.onRemove - Callback to remove the stock from the watchlist.
+ * @param props.onSelect - Callback to select the stock.
+ * @param props.onRetry - Callback to retry loading the stock data.
+ * @param props.isSelected - Indicates if the card is currently selected.
+ * @param props.isGlobalLoading - Indicates if global loading is in progress.
+ * @param props.chartWidth - The width of the chart.
+ *
+ * @returns A JSX element representing the stock card.
+ */
 function StockCard(props: Readonly<CardProps>) {
   const {
     stock,
@@ -15,14 +39,12 @@ function StockCard(props: Readonly<CardProps>) {
     chartWidth,
   } = props;
 
-  // FORCE REFRESH TIMER - Updates every minute to force chart re-render
   const [forceUpdate, setForceUpdate] = useState(0);
 
   useEffect(() => {
     const interval = setInterval(() => {
       setForceUpdate((prev) => prev + 1);
-      console.log(`🔄 Force refreshing chart for ${stock.symbol}`);
-    }, 60000); // Every 60 seconds
+    }, 60000);
 
     return () => clearInterval(interval);
   }, [stock.symbol]);
@@ -32,13 +54,10 @@ function StockCard(props: Readonly<CardProps>) {
 
   const cardRef = useRef<HTMLButtonElement>(null);
 
-  /**
-   * Handles keyboard interactions for the stock card
-   */
   const handleKeyDown = (e: React.KeyboardEvent<HTMLButtonElement>) => {
     switch (e.key) {
       case "Enter":
-      case " ": // Space bar
+      case " ":
         e.preventDefault();
         onSelect(stock);
         break;

@@ -6,6 +6,34 @@ import { RefreshCw } from "lucide-react";
 import { SearchDropdown } from "@/components/search-dropdown";
 import { DetailedStockModal } from "./components/detail-stock-modal";
 
+/**
+ * The main application component for the Financial Dashboard.
+ *
+ * This component manages the overall state and UI for searching stocks,
+ * managing a watchlist, refreshing stock data, and displaying detailed stock information.
+ *
+ * Features:
+ * - Search for stocks and add them to a watchlist.
+ * - Display a list of stocks in the watchlist with charts.
+ * - Remove stocks from the watchlist.
+ * - Retry loading stock data if there are errors.
+ * - Select a stock to view detailed information in a modal.
+ * - Refresh all stocks with a cooldown timer.
+ * - Responsive chart sizing based on container and window size.
+ * - Keyboard navigation for search dropdown.
+ *
+ * State Management:
+ * - Uses `useStockData` custom hook for stock-related state and actions.
+ * - Manages local UI state for search input, dropdown visibility, selected index, and chart width.
+ *
+ * UI Components:
+ * - `SearchDropdown`: Displays search results for stocks.
+ * - `StockCard`: Shows individual stock information and chart.
+ * - `DetailedStockModal`: Modal for detailed stock info.
+ * - `Toaster`: Displays notifications. (from react-hot-toast)
+ *
+ * @returns {JSX.Element} The rendered Financial Dashboard application.
+ */
 function App() {
   const {
     watchlist,

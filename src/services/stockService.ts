@@ -11,7 +11,7 @@ import { CompanyNameResolver } from "@/utils/company-names";
 const API_KEY = import.meta.env.VITE_FINNHUB_API_KEY;
 const BASE_URL = "https://finnhub.io/api/v1";
 const quoteCache = new Map<string, { data: Stock; timestamp: number }>();
-const QUOTE_CACHE_DURATION = 30000; // 30 seconds
+const QUOTE_CACHE_DURATION = 30000;
 
 //////////////////////////// Error Checking /////////////////////////////////
 
@@ -73,7 +73,6 @@ const toStartCase = (str: string): string => {
       if (word === "inc" || word === "corp" || word === "ltd") {
         return word.charAt(0).toUpperCase() + word.slice(1) + ".";
       }
-      // Regular words
       return word.charAt(0).toUpperCase() + word.slice(1);
     })
     .join(" ");
@@ -82,11 +81,9 @@ const toStartCase = (str: string): string => {
 ////////////////////////////////// Core functionality //////////////////////////////////
 
 const companyNameCache = new Map<string, string>(
-  // Load from localStorage on startup
   JSON.parse(localStorage.getItem("companyNameCache") || "[]")
 );
 
-// Add this helper function:
 const saveCompanyNameCache = () => {
   localStorage.setItem(
     "companyNameCache",
@@ -112,39 +109,35 @@ export const stockService = {
   async getCompanyName(symbol: string): Promise<string> {
     const symbolUpper = symbol.toUpperCase();
 
-    // Check cache first
+    // Checks cache first
     if (companyNameCache.has(symbolUpper)) {
       return companyNameCache.get(symbolUpper)!;
     }
 
-    // Check static mapping first (no API call needed!)
     const mappedName = CompanyNameResolver.getCompanyName(symbolUpper);
     if (mappedName) {
       companyNameCache.set(symbolUpper, mappedName);
-      saveCompanyNameCache(); // Add this line
+      saveCompanyNameCache();
       return mappedName;
     }
 
-    // Fallback to API call only for unmapped stocks
     try {
       const response = await fetch(
         `${BASE_URL}/search?q=${symbolUpper}&exchange=US&token=${API_KEY}`
       );
 
-      // If rate limited, just return the symbol
       if (response.status === 429) {
         console.warn(`Rate limited for company name: ${symbolUpper}`);
         companyNameCache.set(symbolUpper, symbolUpper);
         companyNameCache.set(symbolUpper, symbolUpper);
-        saveCompanyNameCache(); // Add this line
+        saveCompanyNameCache();
         return symbolUpper;
       }
 
       const data = await response.json();
 
-      let companyName = symbolUpper; // Fallback to symbol
+      let companyName = symbolUpper;
       if (data.result && data.result.length > 0) {
-        // 🔧 BUG FIX: Find exact symbol match, not just first result
         const exactMatch = data.result.find(
           (item: any) => item.symbol.toUpperCase() === symbolUpper
         );
@@ -152,19 +145,18 @@ export const stockService = {
         if (exactMatch) {
           companyName = toStartCase(exactMatch.description);
         } else {
-          // No exact match found - this might be an invalid symbol
           console.warn(`No exact match found for symbol: ${symbolUpper}`);
-          companyName = symbolUpper; // Keep as symbol
+          companyName = symbolUpper; // Worst case – keep symbol
         }
       }
 
       companyNameCache.set(symbolUpper, companyName);
-      saveCompanyNameCache(); // Add this line
+      saveCompanyNameCache();
       return companyName;
     } catch (error) {
       console.warn(`Error fetching company name for ${symbolUpper}:`, error);
       companyNameCache.set(symbolUpper, symbolUpper);
-      saveCompanyNameCache(); // Add this line
+      saveCompanyNameCache();
       return symbolUpper;
     }
   },
@@ -187,8 +179,8 @@ export const stockService = {
 
       if (data.result && Array.isArray(data.result)) {
         return data.result
-          .filter((item: any) => item.type === "Common Stock") // Only show stocks
-          .slice(0, 10); // Limit to 10 results
+          .filter((item: any) => item.type === "Common Stock")
+          .slice(0, 10);
       }
 
       return [];
@@ -231,7 +223,7 @@ export const stockService = {
         lastUpdated: new Date(),
         isLoading: false,
         error: undefined,
-        priceHistory: [], // Initialize empty price history
+        priceHistory: [],
       };
     } catch (error) {
       if (isCustomError(error)) {
@@ -243,7 +235,6 @@ export const stockService = {
     }
   },
 
-  // Helper function to create price point from stock data
   createPricePoint(stock: Stock): PricePoint {
     return {
       timestamp: new Date(),
@@ -253,11 +244,8 @@ export const stockService = {
     };
   },
 
-  // Helper function to add price point to history
   addPriceToHistory(stock: Stock, maxPoints: number = 100): Stock {
     const newPricePoint = this.createPricePoint(stock);
-
-    // Add new point and keep only the last maxPoints
     const updatedHistory = [...stock.priceHistory, newPricePoint].slice(
       -maxPoints
     );
