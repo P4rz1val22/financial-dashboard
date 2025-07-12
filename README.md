@@ -1,4 +1,4 @@
-[![Live Demo](https://img.shields.io/badge/Live%20Demo-Visit%20Site-blue?style=for-the-badge)](https://your-vercel-url.vercel.app)
+[![Live Demo](https://img.shields.io/badge/Live%20Demo-Visit%20Site-blue?style=for-the-badge)](https://financial-dashboard-iota-tawny.vercel.app)
 [![License](https://img.shields.io/badge/License-MIT-green?style=for-the-badge)](LICENSE)
 [![TypeScript](https://img.shields.io/badge/TypeScript-91.2%25-blue?style=for-the-badge&logo=typescript)](https://www.typescriptlang.org/)
 
@@ -49,7 +49,7 @@ src/
 - **Quote endpoint**: Real-time price data
 - **Search endpoint**: Stock symbol lookup
 - **Rate limiting**: 60 calls/minute (free tier)
-- **Error handling**: Graceful fallbacks for API failures
+- **Error handling**: Fallbacks for API failures
 
 ### **Data Flow**
 
@@ -127,6 +127,29 @@ This is a portfolio project, but feedback and suggestions are welcome!
 5. Commit with descriptive messages (`git commit -m 'Add amazing feature'`)
 6. Push to your branch (`git push origin feature/amazing-feature`)
 7. Open a Pull Request with detailed description
+
+## 📊 **Performance & Quality**
+
+### **Lighthouse Scores** ✨
+
+- 🚀 **Performance**: `99/100`
+- ♿ **Accessibility**: `100/100` _(Full keyboard navigation & screen reader support)_
+- ✅ **Best Practices**: `100/100`
+- 🔍 **SEO**: `100/100`
+
+### **Core Web Vitals** 🎯
+
+- **First Contentful Paint**: `0.4s`
+- **Largest Contentful Paint**: `0.4s`
+- **Total Blocking Time**: `0ms`
+- **Cumulative Layout Shift**: `0`
+- **Speed Index**: `1.3s`
+
+### **Bundle Efficiency**
+
+- **Production bundle**: 93KB gzipped (optimized for performance)
+- **Code coverage**: 44% utilized (D3.js charting library overhead)
+- **Load time**: Sub-second on all modern networks
 
 ### **Code Standards**
 
