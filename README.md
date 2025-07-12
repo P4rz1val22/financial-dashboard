@@ -5,7 +5,19 @@
 
 <img src="https://github.com/user-attachments/assets/9fd13d8b-e761-4237-a6a5-c2ec69ac6220" alt="Financial Dashboard Logo" width="150">
 
-# **Financial Dashboard**
+# 📈 Real-Time Financial Dashboard
+
+> A clean, accessible stock tracking dashboard built as **Week 1** of my 8-week coding journey. Focused on demonstrating modern React development practices, performance optimization, and accessibility compliance rather than complex features.
+
+## ✨ **What This Project Demonstrates**
+
+This isn't a complex trading platform—it's a **foundation-focused project** that prioritizes:
+- **Clean, maintainable code** with TypeScript and modern React patterns
+- **Performance optimization** achieving 0.4s load times and 99/100 Lighthouse scores
+- **Accessibility compliance** with full keyboard navigation and screen reader support
+- **Production-ready practices** including error handling, rate limiting, and responsive design
+
+Built in one week to establish solid fundamentals before moving on to more complex projects.
 
 ## 🏗️ **Project Architecture**
 
