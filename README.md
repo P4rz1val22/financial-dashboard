@@ -1,6 +1,12 @@
+
+
+![stocks-logo](https://github.com/user-attachments/assets/9fd13d8b-e761-4237-a6a5-c2ec69ac6220)
+
+
 [![Live Demo](https://img.shields.io/badge/Live%20Demo-Visit%20Site-blue?style=for-the-badge)](https://financial-dashboard-iota-tawny.vercel.app)
 [![License](https://img.shields.io/badge/License-MIT-green?style=for-the-badge)](LICENSE)
 [![TypeScript](https://img.shields.io/badge/TypeScript-91.2%25-blue?style=for-the-badge&logo=typescript)](https://www.typescriptlang.org/)
+![Uploading stocks-logo.svg…]()
 
 [![JavaScript](https://img.shields.io/badge/JavaScript-7.5%25-blue?style=for-the-badge&logo=javascript)](https://www.typescriptlang.org/)
 
