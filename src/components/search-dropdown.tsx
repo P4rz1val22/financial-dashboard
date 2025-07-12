@@ -1,5 +1,5 @@
 import { SearchDropdownProps } from "@/types";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 
 interface SearchDropdownWithKeyboardProps extends SearchDropdownProps {
   selectedIndex: number;

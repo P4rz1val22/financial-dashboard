@@ -27,8 +27,6 @@ function App() {
   const [tempQuery, setTempQuery] = useState("");
   const [isDropdownVisible, setIsDropdownVisible] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(-1);
-
-  // Add responsive chart sizing at app level
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const [chartWidth, setChartWidth] = useState(180);
 
@@ -36,24 +34,16 @@ function App() {
     const updateChartWidth = () => {
       if (chartContainerRef.current) {
         const containerWidth = chartContainerRef.current.offsetWidth;
-        // Calculate width based on grid columns and gaps
-        // For lg: 3 columns, md: 2 columns, sm: 1 column
         const isLarge = window.innerWidth >= 1024;
-        const isMedium = window.innerWidth >= 768;
 
         let availableWidth;
         if (isLarge) {
-          // 3 columns with gaps
-          availableWidth = (containerWidth - 16) / 3; // 16px = 2 gaps * 8px
-        } else if (isMedium) {
-          // 2 columns with gaps
-          availableWidth = (containerWidth - 8) / 2; // 8px = 1 gap * 8px
+          availableWidth = (containerWidth - 16) / 3;
+          availableWidth = (containerWidth - 8) / 2;
         } else {
-          // 1 column
           availableWidth = containerWidth;
         }
 
-        // Subtract card padding and some buffer
         setChartWidth(Math.max(150, availableWidth - 40));
       }
     };
@@ -63,17 +53,14 @@ function App() {
     return () => window.removeEventListener("resize", updateChartWidth);
   }, [isGlobalLoading, watchlist.length]);
 
-  // Filter out stocks that are already in watchlist
   const filteredSearchResults = searchResults.filter(
     (result) => !watchlist.some((stock) => stock.symbol === result.symbol)
   );
 
-  // Reset selected index when search results change (not filtered results)
   useEffect(() => {
     setSelectedIndex(-1);
   }, [searchResults]);
 
-  // CUSTOM HOOK FOR REFRESH TIMER (replaces forceUpdate)
   const useRefreshTimer = () => {
     const [, setTick] = useState(0);
 
@@ -120,7 +107,7 @@ function App() {
 
   const handleSearchChange = async (value: string) => {
     setTempQuery(value);
-    setSelectedIndex(-1); // Reset selection when typing
+    setSelectedIndex(-1);
 
     if (value.trim()) {
       await searchStocks(value);
@@ -141,7 +128,6 @@ function App() {
     e: React.KeyboardEvent<HTMLInputElement>
   ) => {
     if (!isDropdownVisible || filteredSearchResults.length === 0) {
-      // Original behavior when dropdown is not visible
       if (e.key === "Enter") {
         await addStock(e.currentTarget.value);
         setTempQuery("");
@@ -152,7 +138,6 @@ function App() {
       return;
     }
 
-    // Keyboard navigation when dropdown is visible
     switch (e.key) {
       case "ArrowDown":
         e.preventDefault();
@@ -180,7 +165,6 @@ function App() {
         ) {
           await handleSelectStock(filteredSearchResults[selectedIndex].symbol);
         } else {
-          // Fallback to original behavior
           await addStock(e.currentTarget.value);
           setTempQuery("");
           setIsDropdownVisible(false);

@@ -121,7 +121,7 @@ export const DetailedStockModal = ({
               </div>
             ) : (
               <div className="bg-white dark:bg-slate-900 rounded p-4 flex items-center justify-center h-64 transition-colors duration-200">
-                <div className="text-slate-500 dark:text-slate-400">
+                <div className="text-slate-600 dark:text-slate-300">
                   No chart data available
                 </div>
               </div>

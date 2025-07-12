@@ -71,7 +71,7 @@ function StockCard(props: Readonly<CardProps>) {
       >
         <div className="flex flex-row items-center gap-1">
           <h2>{stock.symbol}</h2>
-          <div className="text-slate-500">Loading...</div>
+          <div className="text-slate-600">Loading...</div>
         </div>
       </div>
     );
@@ -134,7 +134,7 @@ function StockCard(props: Readonly<CardProps>) {
   return (
     <button
       ref={cardRef}
-      className={`${baseCardClasses} cursor-crosshair focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-offset-2 focus:ring-offset-white dark:focus:ring-offset-slate-900 text-left${
+      className={`${baseCardClasses} cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-offset-2 focus:ring-offset-white dark:focus:ring-offset-slate-900 text-left${
         isSelected ? " ring-2 ring-blue-500" : ""
       }`}
       onClick={() => onSelect(stock)}
@@ -172,7 +172,7 @@ function StockCard(props: Readonly<CardProps>) {
           ${stock.currentPrice?.toFixed(2)}
         </p>
 
-        <div className="flex-1 min-h-[50px] flex items-center justify-center my-1 pointer-events-none">
+        <div className="flex-1 min-h-[50px] flex items-center justify-center my-1 pointer-events-none cursor-crosshair">
           {stock.priceHistory.length > 0 ? (
             <LineChart
               key={`${stock.symbol}-${isSelected}-${forceUpdate}`}
@@ -184,7 +184,7 @@ function StockCard(props: Readonly<CardProps>) {
               isLoading={isGlobalLoading}
             />
           ) : (
-            <div className="text-xs text-slate-400 dark:text-slate-500 text-center">
+            <div className="text-xs text-slate-600 dark:text-slate-300 text-center">
               Loading chart data...
             </div>
           )}

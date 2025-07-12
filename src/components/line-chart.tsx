@@ -1,6 +1,4 @@
-// components/line-chart.tsx
-
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useMemo, useCallback } from "react";
 import * as d3 from "d3";
 import { LineChartProps } from "@/types";
 
@@ -13,55 +11,117 @@ export const LineChart = ({
   isLoading = false,
 }: LineChartProps) => {
   const svgRef = useRef<SVGSVGElement>(null);
-  const [themeKey, setThemeKey] = useState(0);
+  const [isDarkMode, setIsDarkMode] = useState(
+    () => window.matchMedia("(prefers-color-scheme: dark)").matches
+  );
+
+  const handleThemeChange = useCallback((e: MediaQueryListEvent) => {
+    setIsDarkMode(e.matches);
+  }, []);
 
   useEffect(() => {
     const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
-    const handleThemeChange = () => setThemeKey((prev) => prev + 1);
-
     mediaQuery.addEventListener("change", handleThemeChange);
     return () => mediaQuery.removeEventListener("change", handleThemeChange);
-  }, []);
-  useEffect(() => {
-    if (!data || data.length === 0 || isLoading) return;
+  }, [handleThemeChange]);
 
-    const svg = d3.select(svgRef.current);
-    svg.selectAll("*").remove();
+  const theme = useMemo(
+    () => ({
+      textColor: isDarkMode ? "#e2e8f0" : "#6b7280",
+      gridColor: isDarkMode ? "#475569" : "#d1d5db",
+      tooltipBg: isDarkMode ? "#1d293d" : "white",
+      tooltipBorder: isDarkMode ? "#4b5563" : "#e5e7eb",
+      tooltipText: isDarkMode ? "#f8fafc" : "#1f2937",
+      circleStroke: isDarkMode ? "#1e293b" : "white",
+      boxShadow: isDarkMode
+        ? "0 10px 15px -3px rgba(0, 0, 0, 0.5), 0 4px 6px -2px rgba(0, 0, 0, 0.3)"
+        : "0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)",
+    }),
+    [isDarkMode]
+  );
 
-    const margin = mini
-      ? { top: 5, right: 10, bottom: 15, left: 40 }
-      : { top: 20, right: 30, bottom: 30, left: 55 };
-
-    const innerWidth = width - margin.left - margin.right;
-    const innerHeight = height - margin.top - margin.bottom;
-
-    // Create main group
-    const g = svg
-      .append("g")
-      .attr("transform", `translate(${margin.left},${margin.top})`);
-
-    // Set up scales
-    const xScale = d3
-      .scaleTime()
-      .domain(d3.extent(data, (d) => d.timestamp) as [Date, Date])
-      .range([0, innerWidth]);
-
-    const yScale = d3
-      .scaleLinear()
-      .domain(d3.extent(data, (d) => d.price) as [number, number])
-      .nice()
-      .range([innerHeight, 0]);
-
-    const line = d3
-      .line<(typeof data)[0]>()
-      .x((d) => xScale(d.timestamp))
-      .y((d) => yScale(d.price))
-      .curve(d3.curveMonotoneX);
+  const chartData = useMemo(() => {
+    if (!data || data.length === 0) return null;
 
     const firstPrice = data[0]?.price || 0;
     const lastPrice = data[data.length - 1]?.price || 0;
     const isPositive = lastPrice >= firstPrice;
     const lineColor = isPositive ? "#10b981" : "#ef4444";
+
+    return {
+      data,
+      lineColor,
+      isPositive,
+      xDomain: d3.extent(data, (d) => d.timestamp) as [Date, Date],
+      yDomain: d3.extent(data, (d) => d.price) as [number, number],
+    };
+  }, [data]);
+
+  const margin = useMemo(
+    () =>
+      mini
+        ? { top: 5, right: 10, bottom: 15, left: 40 }
+        : { top: 20, right: 30, bottom: 30, left: 55 },
+    [mini]
+  );
+
+  const dimensions = useMemo(
+    () => ({
+      innerWidth: width - margin.left - margin.right,
+      innerHeight: height - margin.top - margin.bottom,
+    }),
+    [width, height, margin]
+  );
+
+  const scales = useMemo(() => {
+    if (!chartData) return null;
+
+    const xScale = d3
+      .scaleTime()
+      .domain(chartData.xDomain)
+      .range([0, dimensions.innerWidth]);
+
+    const yScale = d3
+      .scaleLinear()
+      .domain(chartData.yDomain)
+      .nice()
+      .range([dimensions.innerHeight, 0]);
+
+    return { xScale, yScale };
+  }, [chartData, dimensions]);
+
+  const pathGenerators = useMemo(() => {
+    if (!scales) return null;
+
+    const line = d3
+      .line<(typeof data)[0]>()
+      .x((d) => scales.xScale(d.timestamp))
+      .y((d) => scales.yScale(d.price))
+      .curve(d3.curveMonotoneX);
+
+    const area = d3
+      .area<(typeof data)[0]>()
+      .x((d) => scales.xScale(d.timestamp))
+      .y0(dimensions.innerHeight)
+      .y1((d) => scales.yScale(d.price))
+      .curve(d3.curveMonotoneX);
+
+    return { line, area };
+  }, [scales, dimensions, data]);
+
+  const cleanupTooltips = useCallback(() => {
+    d3.selectAll(`.chart-tooltip-${symbol}`).remove();
+  }, [symbol]);
+
+  useEffect(() => {
+    if (!chartData || !scales || !pathGenerators || isLoading) return;
+
+    const svg = d3.select(svgRef.current);
+    svg.selectAll("*").remove();
+
+    const g = svg
+      .append("g")
+      .attr("transform", `translate(${margin.left},${margin.top})`);
 
     const gradient = g
       .append("defs")
@@ -71,140 +131,128 @@ export const LineChart = ({
       .attr("x1", 0)
       .attr("y1", 0)
       .attr("x2", 0)
-      .attr("y2", innerHeight);
+      .attr("y2", dimensions.innerHeight);
 
     gradient
       .append("stop")
       .attr("offset", "0%")
-      .attr("stop-color", lineColor)
+      .attr("stop-color", chartData.lineColor)
       .attr("stop-opacity", 0.3);
 
     gradient
       .append("stop")
       .attr("offset", "100%")
-      .attr("stop-color", lineColor)
+      .attr("stop-color", chartData.lineColor)
       .attr("stop-opacity", 0.05);
 
-    const area = d3
-      .area<(typeof data)[0]>()
-      .x((d) => xScale(d.timestamp))
-      .y0(innerHeight)
-      .y1((d) => yScale(d.price))
-      .curve(d3.curveMonotoneX);
-
     g.append("path")
-      .datum(data)
+      .datum(chartData.data)
       .attr("fill", `url(#gradient-${symbol})`)
-      .attr("d", area);
+      .attr("d", pathGenerators.area);
 
     g.append("path")
-      .datum(data)
+      .datum(chartData.data)
       .attr("fill", "none")
-      .attr("stroke", lineColor)
+      .attr("stroke", chartData.lineColor)
       .attr("stroke-width", mini ? 1.5 : 2)
-      .attr("d", line);
-
-    // Check if dark mode is active
-    const isDarkMode = window.matchMedia(
-      "(prefers-color-scheme: dark)"
-    ).matches;
-    const textColor = isDarkMode ? "#e2e8f0" : "#6b7280"; // slate-200 : gray-500
-    const gridColor = isDarkMode ? "#475569" : "#d1d5db"; // slate-600 : gray-300
+      .attr("d", pathGenerators.line);
 
     if (!mini) {
       g.append("g")
-        .attr("transform", `translate(0,${innerHeight})`)
+        .attr("transform", `translate(0,${dimensions.innerHeight})`)
         .call(
           d3
-            .axisBottom(xScale)
+            .axisBottom(scales.xScale)
             .tickFormat(d3.timeFormat("%H:%M") as any)
             .ticks(8)
         )
         .selectAll("text")
         .style("font-size", "12px")
-        .style("fill", textColor);
+        .style("fill", theme.textColor);
 
       g.append("g")
-        .call(d3.axisLeft(yScale).tickFormat(d3.format("$.2f")).ticks(6))
+        .call(d3.axisLeft(scales.yScale).tickFormat(d3.format("$.2f")).ticks(6))
         .selectAll("text")
         .style("font-size", "12px")
-        .style("fill", textColor);
+        .style("fill", theme.textColor);
 
-      g.append("g")
-        .attr("class", "grid")
-        .attr("transform", `translate(0,${innerHeight})`)
+      const gridGroup = g.append("g").attr("class", "grid-group");
+
+      gridGroup
+        .append("g")
+        .attr("transform", `translate(0,${dimensions.innerHeight})`)
         .call(
           d3
-            .axisBottom(xScale)
-            .tickSize(-innerHeight)
+            .axisBottom(scales.xScale)
+            .tickSize(-dimensions.innerHeight)
             .tickFormat(() => "")
             .ticks(6)
         )
-        .style("stroke", gridColor)
+        .style("stroke", theme.gridColor)
         .style("stroke-dasharray", "2,2")
         .style("opacity", 0.3);
 
-      g.append("g")
-        .attr("class", "grid")
+      gridGroup
+        .append("g")
         .call(
           d3
-            .axisLeft(yScale)
-            .tickSize(-innerWidth)
+            .axisLeft(scales.yScale)
+            .tickSize(-dimensions.innerWidth)
             .tickFormat(() => "")
             .ticks(6)
         )
-        .style("stroke", gridColor)
+        .style("stroke", theme.gridColor)
         .style("stroke-dasharray", "2,2")
         .style("opacity", 0.3);
     } else {
       g.append("g")
-        .attr("transform", `translate(0,${innerHeight})`)
+        .attr("transform", `translate(0,${dimensions.innerHeight})`)
         .call(
           d3
-            .axisBottom(xScale)
+            .axisBottom(scales.xScale)
             .tickFormat(d3.timeFormat("%H:%M") as any)
             .ticks(5)
         )
         .selectAll("text")
         .style("font-size", "8px")
-        .style("fill", textColor);
+        .style("fill", theme.textColor);
 
       g.append("g")
-        .call(d3.axisLeft(yScale).tickFormat(d3.format("$,.2f")).ticks(3))
+        .call(
+          d3.axisLeft(scales.yScale).tickFormat(d3.format("$,.2f")).ticks(3)
+        )
         .selectAll("text")
         .style("font-size", "8px")
-        .style("fill", textColor);
+        .style("fill", theme.textColor);
 
       g.selectAll(".domain")
-        .style("stroke", gridColor)
+        .style("stroke", theme.gridColor)
         .style("stroke-width", "1px");
 
       g.selectAll(".tick line")
-        .style("stroke", gridColor)
+        .style("stroke", theme.gridColor)
         .style("stroke-width", "1px");
-    }
 
-    if (mini) {
       g.selectAll(".dot")
-        .data(data.slice(-10))
+        .data(chartData.data.slice(-10))
         .enter()
         .append("circle")
         .attr("class", "dot")
-        .attr("cx", (d) => xScale(d.timestamp))
-        .attr("cy", (d) => yScale(d.price))
+        .attr("cx", (d) => scales.xScale(d.timestamp))
+        .attr("cy", (d) => scales.yScale(d.price))
         .attr("r", 1.5)
-        .attr("fill", lineColor)
+        .attr("fill", chartData.lineColor)
         .attr("opacity", 0.7);
     }
 
-    if (!mini && data.length > 0) {
-      const latestPoint = data[data.length - 1];
+    if (!mini && chartData.data.length > 0) {
+      const latestPoint = chartData.data[chartData.data.length - 1];
       const pulseCircle = g
         .append("circle")
-        .attr("cx", xScale(latestPoint.timestamp))
-        .attr("cy", yScale(latestPoint.price))
+        .attr("cx", scales.xScale(latestPoint.timestamp))
+        .attr("cy", scales.yScale(latestPoint.price))
         .attr("r", 0)
-        .attr("fill", lineColor)
+        .attr("fill", chartData.lineColor)
         .attr("opacity", 0.6);
 
       pulseCircle
@@ -216,14 +264,7 @@ export const LineChart = ({
         .remove();
     }
 
-    // ===== TOOLTIP FUNCTIONALITY =====
-
-    d3.selectAll(`.chart-tooltip-${symbol}`).remove();
-
-    // Dark mode aware tooltip styling
-    const tooltipBg = isDarkMode ? "#1d293d" : "white"; // gray-700 : white
-    const tooltipBorder = isDarkMode ? "#4b5563" : "#e5e7eb"; // gray-600 : gray-200
-    const tooltipText = isDarkMode ? "#f8fafc" : "#1f2937"; // slate-50 : gray-800
+    cleanupTooltips();
 
     const tooltip = d3
       .select("body")
@@ -231,34 +272,28 @@ export const LineChart = ({
       .attr("class", `chart-tooltip chart-tooltip-${symbol}`)
       .style("position", "absolute")
       .style("visibility", "hidden")
-      .style("background", tooltipBg)
-      .style("border", `1px solid ${tooltipBorder}`)
+      .style("background", theme.tooltipBg)
+      .style("border", `1px solid ${theme.tooltipBorder}`)
       .style("border-radius", "8px")
       .style("padding", "12px")
-      .style(
-        "box-shadow",
-        isDarkMode
-          ? "0 10px 15px -3px rgba(0, 0, 0, 0.5), 0 4px 6px -2px rgba(0, 0, 0, 0.3)"
-          : "0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)"
-      )
+      .style("box-shadow", theme.boxShadow)
       .style("font-size", "12px")
       .style("font-family", "system-ui, -apple-system, sans-serif")
       .style("z-index", "9999")
       .style("pointer-events", "none")
       .style("max-width", "250px")
-      .style("color", tooltipText);
+      .style("color", theme.tooltipText);
 
     const overlay = g
       .append("rect")
-      .attr("width", innerWidth)
-      .attr("height", innerHeight)
+      .attr("width", dimensions.innerWidth)
+      .attr("height", dimensions.innerHeight)
       .style("fill", "none")
       .style("pointer-events", "all");
 
-    // Add vertical line for hover indicator
     const hoverLine = g
       .append("line")
-      .attr("stroke", textColor)
+      .attr("stroke", theme.textColor)
       .attr("stroke-width", 1)
       .attr("stroke-dasharray", "3,3")
       .attr("opacity", 0)
@@ -267,8 +302,8 @@ export const LineChart = ({
     const hoverCircle = g
       .append("circle")
       .attr("r", 4)
-      .attr("fill", lineColor)
-      .attr("stroke", isDarkMode ? "#1e293b" : "white") // slate-800 : white
+      .attr("fill", chartData.lineColor)
+      .attr("stroke", theme.circleStroke)
       .attr("stroke-width", 2)
       .attr("opacity", 0)
       .style("pointer-events", "none");
@@ -277,10 +312,10 @@ export const LineChart = ({
 
     overlay.on("mousemove", function (event) {
       const [mouseX] = d3.pointer(event, this);
-      const x0 = xScale.invert(mouseX);
-      const i = bisect(data, x0, 1);
-      const d0 = data[i - 1];
-      const d1 = data[i];
+      const x0 = scales.xScale.invert(mouseX);
+      const i = bisect(chartData.data, x0, 1);
+      const d0 = chartData.data[i - 1];
+      const d1 = chartData.data[i];
 
       const d =
         d1 &&
@@ -291,39 +326,41 @@ export const LineChart = ({
 
       if (d) {
         const xPos = mouseX;
-        const yPos = yScale(d.price);
+        const yPos = scales.yScale(d.price);
 
         hoverLine
           .attr("x1", xPos)
           .attr("x2", xPos)
           .attr("y1", 0)
-          .attr("y2", innerHeight)
+          .attr("y2", dimensions.innerHeight)
           .attr("opacity", 0.6);
 
         hoverCircle
-          .attr("cx", xScale(d.timestamp))
+          .attr("cx", scales.xScale(d.timestamp))
           .attr("cy", yPos)
           .attr("opacity", 1);
 
-        const prevPoint = data[Math.max(0, data.indexOf(d) - 1)];
+        const prevPoint =
+          chartData.data[Math.max(0, chartData.data.indexOf(d) - 1)];
         const priceChange = prevPoint ? d.price - prevPoint.price : 0;
         const priceChangePercent = prevPoint
           ? ((d.price - prevPoint.price) / prevPoint.price) * 100
           : 0;
 
         const tooltipContent = `
-          <div style="font-weight: bold; margin-bottom: 4px; font-size:16px; color: ${tooltipText};">${symbol}</div>
-          <div style="margin-bottom: 4px; font-weight:500; font-size:14px; color: ${tooltipText};">${d.price.toFixed(
-          2
-        )} USD
-          </div>
-          <div style="margin-bottom: 4px; color: ${tooltipText};">
+          <div style="font-weight: bold; margin-bottom: 4px; font-size:16px; color: ${
+            theme.tooltipText
+          };">${symbol}</div>
+          <div style="margin-bottom: 4px; font-weight:500; font-size:14px; color: ${
+            theme.tooltipText
+          };">${d.price.toFixed(2)} USD</div>
+          <div style="margin-bottom: 4px; color: ${theme.tooltipText};">
             <span style="font-weight: 500;">Time:</span> ${d.timestamp.toLocaleTimeString(
               [],
               { hour: "2-digit", minute: "2-digit" }
             )}
           </div>
-          <div style="margin-bottom: 4px; color: ${tooltipText};">
+          <div style="margin-bottom: 4px; color: ${theme.tooltipText};">
             <span style="font-weight: 500;">Date:</span> ${d.timestamp.toLocaleDateString()}
           </div>
           <div style="margin-bottom: 4px; color: ${
@@ -347,7 +384,6 @@ export const LineChart = ({
         `;
 
         const svgRect = svgRef.current!.getBoundingClientRect();
-
         const mouseXRelativeToSVG = event.offsetX || event.layerX;
         const tooltipX = Math.max(
           10,
@@ -374,13 +410,24 @@ export const LineChart = ({
       hoverLine.attr("opacity", 0);
       hoverCircle.attr("opacity", 0);
     });
-  }, [data, width, height, mini, symbol, isLoading, themeKey]);
+
+    return cleanupTooltips;
+  }, [
+    chartData,
+    scales,
+    pathGenerators,
+    isLoading,
+    margin,
+    dimensions,
+    theme,
+    mini,
+    symbol,
+    cleanupTooltips,
+  ]);
 
   useEffect(() => {
-    return () => {
-      d3.selectAll(`.chart-tooltip-${symbol}`).remove();
-    };
-  }, [symbol]);
+    return cleanupTooltips;
+  }, [cleanupTooltips]);
 
   if (isLoading) {
     return (
@@ -396,7 +443,7 @@ export const LineChart = ({
   if (!data || data.length === 0) {
     return (
       <div
-        className="flex items-center justify-center bg-slate-50 dark:bg-slate-700 rounded text-slate-500 dark:text-slate-400 text-sm transition-colors duration-200"
+        className="flex items-center justify-center bg-slate-50 dark:bg-slate-700 rounded text-slate-600 dark:text-slate-300 text-sm transition-colors duration-200"
         style={{ width, height }}
       >
         No chart data
