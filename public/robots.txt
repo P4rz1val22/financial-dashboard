@@ -1,0 +1,18 @@
+User-agent: *
+Allow: /
+
+# Sitemap (optional, for when you add one later)
+Sitemap: https://financial-dashboard-iota-tawny.vercel.app/sitemap.xml
+
+# Performance optimizations
+Crawl-delay: 1
+
+# Allow all major search engines
+User-agent: Googlebot
+Allow: /
+
+User-agent: Bingbot
+Allow: /
+
+User-agent: Slurp
+Allow: /

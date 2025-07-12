@@ -28,7 +28,7 @@ function StockCard(props: Readonly<CardProps>) {
   }, [stock.symbol]);
 
   const baseCardClasses =
-    "bg-white dark:bg-slate-900 rounded-lg shadow-md p-4 transition h-70 overflow-hidden";
+    "bg-white dark:bg-slate-900 rounded-lg shadow-md p-4 transition h-74 overflow-hidden";
 
   const cardRef = useRef<HTMLButtonElement>(null);
 
@@ -90,7 +90,7 @@ function StockCard(props: Readonly<CardProps>) {
     return (
       <button
         ref={cardRef}
-        className={`${baseCardClasses} border-l-4 border-red-500 focus:outline-none focus:ring-2 focus:ring-red-400 focus:ring-offset-2 focus:ring-offset-white dark:focus:ring-offset-slate-900`}
+        className={`${baseCardClasses} border-l-4 border-red-700 focus:outline-none focus:ring-2 focus:ring-red-400 focus:ring-offset-2 focus:ring-offset-white dark:focus:ring-offset-slate-900`}
         tabIndex={0}
         role="button"
         aria-label={`Stock ${stock.symbol} failed to load. Press R to retry, Delete to remove.`}
@@ -99,7 +99,7 @@ function StockCard(props: Readonly<CardProps>) {
         <div className="flex flex-col gap-2 justify-between h-full">
           <div>
             <h2 className="font-bold text-red-600">{stock.symbol}</h2>
-            <p className="text-sm text-red-500">
+            <p className="text-sm text-red-700">
               Failed to load – {formatErrorMessage(stock.error)}
             </p>
           </div>
@@ -119,7 +119,7 @@ function StockCard(props: Readonly<CardProps>) {
                 e.stopPropagation();
                 onRemove(stock.symbol);
               }}
-              className="bg-white border-slate-300 dark:bg-slate-900 dark:border-slate-600 border-1 hover:text-red-500  p-2 cursor-pointer rounded-md text-md hover:border-red-500 transition focus:outline-none focus:ring-2 focus:ring-red-400"
+              className="bg-white border-slate-300 dark:bg-slate-900 dark:border-slate-600 border-1 hover:text-red-700  p-2 cursor-pointer rounded-md text-md hover:border-red-700 transition focus:outline-none focus:ring-2 focus:ring-red-400"
               aria-label={`Remove ${stock.symbol} from watchlist`}
             >
               Remove
@@ -152,16 +152,16 @@ function StockCard(props: Readonly<CardProps>) {
       <div className="flex flex-col">
         <div className="flex flex-row items-center gap-2">
           <h2 className="font-bold">{stock.symbol}</h2>
-          <h4
+          <span
             className={`text-sm ${
               stock.change && stock.change >= 0
-                ? "text-green-600"
-                : "text-red-600"
+                ? "text-green-600  dark:text-green-500"
+                : "text-red-600 dark:text-red-500"
             }`}
           >
             {stock.change?.toFixed(2)} ({stock.changePercent?.toFixed(2)}%)
             {stock.change && stock.change >= 0 ? "⬆︎" : "⬇︎"}Today
-          </h4>
+          </span>
         </div>
 
         <p className="text-sm text-slate-600 dark:text-slate-300">
@@ -195,7 +195,7 @@ function StockCard(props: Readonly<CardProps>) {
             e.stopPropagation();
             onRemove(stock.symbol);
           }}
-          className="text-red-500 hover:text-red-700 text-sm cursor-pointer self-start focus:outline-none focus:ring-2 focus:ring-red-400 dark:focus:ring-offset-slate-900 focus:ring-offset-2 rounded px-1 transition"
+          className=" text-red-700 dark:text-red-500 hover:underline text-md cursor-pointer self-start focus:outline-none focus:ring-2 focus:ring-red-400 dark:focus:ring-offset-slate-900 focus:ring-offset-2 rounded px-3 py-2 transition min-h-[44px] "
           aria-label={`Remove ${stock.symbol} from watchlist`}
         >
           Remove
