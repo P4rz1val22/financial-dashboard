@@ -41,6 +41,10 @@ src/
 │   ├── session-storage.ts # Browser storage management
 │   └── company-names.ts # Stock symbol mappings
 └── App.tsx              # Main application component
+public/
+├── robots.txt           # Instructions for web robots
+├── stocks-logo.svg      # The favicon for the webpage
+└── sw.js                # The service worker for the hook
 ```
 
 ### **State Management**

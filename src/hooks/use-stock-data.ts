@@ -541,7 +541,7 @@ const useStockData = (): UseStockDataReturn => {
         failedStocks.forEach((stock) => {
           refreshSingleStock(stock.symbol);
         });
-      }, 2000);
+      }, 2000 + Math.random() * 3000);
     }
 
     return () => {

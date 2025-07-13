@@ -1,4 +1,4 @@
-// services/stockService.ts - Complete file with utilities
+// services/stockService.ts
 
 import {
   FinnhubQuoteResponse,
@@ -10,7 +10,14 @@ import { CompanyNameResolver } from "@/utils/company-names";
 
 const API_KEY = import.meta.env.VITE_FINNHUB_API_KEY;
 const BASE_URL = "https://finnhub.io/api/v1";
-const quoteCache = new Map<string, { data: Stock; timestamp: number }>();
+const quoteCache = new Map<
+  string,
+  {
+    data: Stock;
+    fetchTimestamp: number; // When we actually got the data
+    cacheTimestamp: number; // When we cached it
+  }
+>();
 const QUOTE_CACHE_DURATION = 30000;
 
 //////////////////////////// Error Checking /////////////////////////////////
@@ -38,14 +45,20 @@ const validateResponse = (response: Response, symbol: string) => {
 };
 
 const validateStockData = (data: FinnhubQuoteResponse, symbol: string) => {
-  if (
-    (data.c === 0 && data.d === null && data.dp === null) ||
-    data.c === null ||
-    data.d === null ||
-    data.dp === null
-  ) {
+  const missingFields = [];
+  if (data.c === 0 || data.c === null) missingFields.push("currentPrice (c)");
+  if (data.d === null) missingFields.push("change (d)");
+  if (data.dp === null) missingFields.push("changePercent (dp)");
+
+  if (missingFields.length > 0) {
+    console.error(`PARSING_ERROR:${symbol}: Missing fields:`, {
+      received: data,
+      missing: missingFields,
+    });
     throw new Error(
-      `INVALID_SYMBOL:${symbol}: "${symbol}" is not a valid stock symbol`
+      `INVALID_SYMBOL:${symbol}: Missing required fields: ${missingFields.join(
+        ", "
+      )}`
     );
   }
 };
@@ -129,7 +142,6 @@ export const stockService = {
       if (response.status === 429) {
         console.warn(`Rate limited for company name: ${symbolUpper}`);
         companyNameCache.set(symbolUpper, symbolUpper);
-        companyNameCache.set(symbolUpper, symbolUpper);
         saveCompanyNameCache();
         return symbolUpper;
       }
@@ -192,8 +204,11 @@ export const stockService = {
 
   async getQuote(symbol: string): Promise<Stock> {
     const cached = quoteCache.get(symbol);
-    if (cached && Date.now() - cached.timestamp < QUOTE_CACHE_DURATION) {
-      return { ...cached.data, lastUpdated: new Date() };
+    if (cached && Date.now() - cached.cacheTimestamp < QUOTE_CACHE_DURATION) {
+      return {
+        ...cached.data,
+        lastUpdated: new Date(cached.fetchTimestamp),
+      };
     }
 
     try {
@@ -210,7 +225,8 @@ export const stockService = {
       const rawCompanyName = await this.getCompanyName(symbol);
       const companyName = rawCompanyName === symbol ? symbol : rawCompanyName;
 
-      return {
+      const now = Date.now();
+      const stock = {
         symbol: symbol.toUpperCase(),
         companyName: companyName,
         currentPrice: data.c,
@@ -220,11 +236,19 @@ export const stockService = {
         dayLow: data.l,
         dayOpen: data.o,
         previousClose: data.pc,
-        lastUpdated: new Date(),
+        lastUpdated: new Date(now),
         isLoading: false,
         error: undefined,
         priceHistory: [],
       };
+
+      quoteCache.set(symbol, {
+        data: stock,
+        fetchTimestamp: now,
+        cacheTimestamp: now,
+      });
+
+      return stock;
     } catch (error) {
       if (isCustomError(error)) {
         throw error;
@@ -244,7 +268,7 @@ export const stockService = {
     };
   },
 
-  addPriceToHistory(stock: Stock, maxPoints: number = 100): Stock {
+  addPriceToHistory(stock: Stock, maxPoints: number = 288): Stock {
     const newPricePoint = this.createPricePoint(stock);
     const updatedHistory = [...stock.priceHistory, newPricePoint].slice(
       -maxPoints
